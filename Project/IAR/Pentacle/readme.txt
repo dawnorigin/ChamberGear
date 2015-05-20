@@ -1,0 +1,1 @@
+1. 打击次数和时间限制均定义在ApplicationTasks.c中

@@ -1,0 +1,9 @@
+#ifndef __APPLICATIONCONFIG__
+#define __APPLICATIONCONFIG__
+
+#define HIT_BUTTON_TIMES    (30)
+#define HIT_BUTTON_PERIOD   (70000)
+
+#define KEY_JITTER_DELAY_MS (15)
+
+#endif

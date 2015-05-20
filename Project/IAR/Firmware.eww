@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+
+<workspace>
+  <project>
+    <path>$WS_DIR$\DJ_Sona\DJ_Sona.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\Dragon\Dragon.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\Final\Final.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\Jinx\Jinx.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\Painting\Painting.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\Pentacle\Pentacle.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\Play_Botton\Play_Button.ewp</path>
+  </project>
+  <project>
+    <path>$WS_DIR$\Shooting\Shooting.ewp</path>
+  </project>
+  <batchBuild/>
+</workspace>
+
+

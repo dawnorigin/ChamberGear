@@ -1,0 +1,14 @@
+#ifndef __APPLICATIONCONFIG__
+#define __APPLICATIONCONFIG__
+
+#define SWITCH_NUMBER         (6)
+#define WEIGHT_TEST_INTERVAL  (100)
+
+#define WEIGHT_GRAM         (100000.0)
+#define WEIGHT_BASE         (8469000)
+#define WEIGHT_RESOLUTION   (16.67206)
+#define WEIGHT_THRESHOLD    ((int)(WEIGHT_GRAM*WEIGHT_RESOLUTION) + WEIGHT_BASE)
+
+#define KEY_JITTER_DELAY_MS   (15)
+
+#endif
