@@ -14,7 +14,6 @@
 /* Private define ------------------------------------------------------------*/
 enum {
   INIT,
-  SMOKE,
   IDLE,
   STEP1,
   STEP2,
@@ -75,11 +74,17 @@ enum {
 #define HALL4_PIN             (GPIO_Pin_13)
 #define HALL5_PIN             (GPIO_Pin_14)
 #define HALL6_PIN             (GPIO_Pin_15)
+#define HALL_SWORD_PIN        (GPIO_Pin_8)
 #define HALL_PIN_ALL          (HALL1_PIN|HALL2_PIN|HALL3_PIN| \
                                HALL4_PIN|HALL5_PIN|HALL6_PIN)
 #define HALL_STATUS(x)        GPIO_ReadInputDataBit(HALL_PORT, (x))
 #define ENABLE_HALL_IT(x)     {EXTI->IMR |= (x);}
 #define DISABLE_HALL_IT(x)    {EXTI->IMR &= (~(x));}
+
+#define PLAYER_BUSY_PORT      (GPIOA)
+#define PLAYER_BUSY_PIN       (GPIO_Pin_8)
+#define PLAYER_BUSY_STATUS()  (GPIO_ReadInputDataBit(PLAYER_BUSY_PORT, \
+                                                     PLAYER_BUSY_PIN))
 
 #define USART1_PORT           (GPIOA)
 #define USART1_TX_PIN         (GPIO_Pin_9)
@@ -93,8 +98,10 @@ enum {
 #define LASER_TX4_PIN         (GPIO_Pin_13)
 #define LASER_TX5_PIN         (GPIO_Pin_14)
 #define LASER_TX6_PIN         (GPIO_Pin_15)
-#define LASER_TX_OFF()        {GPIO_SetBits(LASER_TX_PORT, LASER_TX_PIN);}
-#define LASER_TX_ON()         {GPIO_ResetBits(LASER_TX_PORT, LASER_TX_PIN);}
+#define LASER_TX_PIN_ALL      (LASER_TX1_PIN|LASER_TX2_PIN|LASER_TX3_PIN| \
+                               LASER_TX4_PIN|LASER_TX5_PIN|LASER_TX6_PIN)
+#define LASER_TX_OFF()        {GPIO_SetBits(LASER_TX_PORT, LASER_TX_PIN_ALL);}
+#define LASER_TX_ON()         {GPIO_ResetBits(LASER_TX_PORT, LASER_TX_PIN_ALL);}
 
 #define LED_BUTTON_PORT       (GPIOC)
 #define LED_BUTTON1_PIN       (GPIO_Pin_6)
@@ -133,16 +140,16 @@ enum {
 #define LED_F1_2_PIN          (GPIO_Pin_14)
 #define LED_F1_3_PIN          (GPIO_Pin_15)
 #define LED_F1_PIN_ALL        (LED_F1_1_PIN|LED_F1_2_PIN|LED_F1_3_PIN)
-#define LED_F1_OFF(x)         {GPIO_SetBits(LED_F1_1_PIN, (x));}
-#define LED_F1_ON(x)          {GPIO_ResetBits(LED_F1_1_PIN, (x));}
+#define LED_F1_OFF(x)         {GPIO_SetBits(LED_F1_PORT, (x));}
+#define LED_F1_ON(x)          {GPIO_ResetBits(LED_F1_PORT, (x));}
 
 #define LED_F2_PORT           (GPIOD)
 #define LED_F2_1_PIN          (GPIO_Pin_5)
 #define LED_F2_2_PIN          (GPIO_Pin_6)
 #define LED_F2_3_PIN          (GPIO_Pin_7)
 #define LED_F2_PIN_ALL        (LED_F2_1_PIN|LED_F2_2_PIN|LED_F2_3_PIN)
-#define LED_F2_OFF(x)         {GPIO_SetBits(LED_F2_1_PIN, (x));}
-#define LED_F2_ON(x)          {GPIO_ResetBits(LED_F2_1_PIN, (x));}
+#define LED_F2_OFF(x)         {GPIO_SetBits(LED_F2_PORT, (x));}
+#define LED_F2_ON(x)          {GPIO_ResetBits(LED_F2_PORT, (x));}
 
 #define LAMP_CAST_PORT        (GPIOE)
 #define LAMP_CAST_PIN         (GPIO_Pin_0)
@@ -166,8 +173,8 @@ enum {
 
 #define LAMP_PORT             (GPIOC)
 #define LAMP_PIN              (GPIO_Pin_14)
-#define LAMP_OFF(x)           {GPIO_SetBits(LAMP_PORT, LAMP_PIN);}
-#define LAMP_ON(x)            {GPIO_ResetBits(LAMP_PORT, LAMP_PIN);}
+#define LAMP_OFF()           {GPIO_SetBits(LAMP_PORT, LAMP_PIN);}
+#define LAMP_ON()            {GPIO_ResetBits(LAMP_PORT, LAMP_PIN);}
 /* Private variables ---------------------------------------------------------*/
 SemaphoreHandle_t xResetSemaphore = NULL;
 /* The queue used to hold step trod */
@@ -189,7 +196,12 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
   for(;;) {
     switch (status) {
       case INIT: {
-        status = SMOKE;
+        
+        status = IDLE;
+        break;
+      }
+      case IDLE: {
+        status = FINISH;
         break;
       }
       case FINISH: {
@@ -210,64 +222,99 @@ static void hardware_init(void) {
   USART_InitTypeDef USART_InitStructure;
   
   /* Configure input GPIO */
-  GPIO_InitStructure.GPIO_Pin = PYRO1_PIN;
+  GPIO_InitStructure.GPIO_Pin = PYRO_PIN;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(PYRO1_PORT, &GPIO_InitStructure);
+  GPIO_Init(PYRO_PORT, &GPIO_InitStructure);
 
-  GPIO_InitStructure.GPIO_Pin = CRAB_PIN;
+  GPIO_InitStructure.GPIO_Pin = BUTTON_PIN_ALL;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(CRAB_PORT, &GPIO_InitStructure);
+  GPIO_Init(BUTTON_PORT, &GPIO_InitStructure);
 
-  GPIO_InitStructure.GPIO_Pin = LASER_REV_PIN;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(LASER_REV_PORT, &GPIO_InitStructure);
-
-  GPIO_InitStructure.GPIO_Pin = PYRO2_PIN;
+  GPIO_InitStructure.GPIO_Pin = LASER_RX_PIN_ALL;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(PYRO2_PORT, &GPIO_InitStructure);  
+  GPIO_Init(LASER_RX_PORT, &GPIO_InitStructure);
+
+  GPIO_InitStructure.GPIO_Pin = LASER_RX5_PIN;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(LASER_RX_PORT, &GPIO_InitStructure);
   
-  GPIO_InitStructure.GPIO_Pin = TREAD_PIN_ALL;
+  GPIO_InitStructure.GPIO_Pin = HALL_PIN_ALL;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(TREAD_PORT, &GPIO_InitStructure);
+  GPIO_Init(HALL_PORT, &GPIO_InitStructure);
+
+  GPIO_InitStructure.GPIO_Pin = HALL_SWORD_PIN;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(HALL_PORT, &GPIO_InitStructure);
   
   /* Configure output GPIO */
-  SMOKE_OFF();
-  GPIO_InitStructure.GPIO_Pin = SMOKE_PIN;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(SMOKE_PORT, &GPIO_InitStructure);
-  
   LASER_TX_OFF();
-  GPIO_InitStructure.GPIO_Pin = LASER_TX_PIN;
+  GPIO_InitStructure.GPIO_Pin = LASER_TX_PIN_ALL;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(LASER_TX_PORT, &GPIO_InitStructure);
-
-  BOX_CRAB_OFF();
-  GPIO_InitStructure.GPIO_Pin = BOX_CRAB_PIN;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(BOX_CRAB_PORT, &GPIO_InitStructure);
   
-  BOX_CAST_OFF();
-  GPIO_InitStructure.GPIO_Pin = BOX_CAST_PIN;
+  LED_BUTTON_OFF(LED_BUTTON_PIN_ALL);
+  GPIO_InitStructure.GPIO_Pin = LED_BUTTON_PIN_ALL;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(BOX_CAST_PORT, &GPIO_InitStructure);
+  GPIO_Init(LED_BUTTON_PORT, &GPIO_InitStructure);
 
+  LED_T1_OFF(LED_T1_PIN_ALL);
+  GPIO_InitStructure.GPIO_Pin = LED_T1_PIN_ALL;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(LED_T1_PORT, &GPIO_InitStructure);
+  
+  LED_T2_OFF(LED_T2_PIN_ALL);
+  GPIO_InitStructure.GPIO_Pin = LED_T2_PIN_ALL;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(LED_T2_PORT, &GPIO_InitStructure);
+
+  LED_F1_OFF(LED_F1_PIN_ALL);
+  GPIO_InitStructure.GPIO_Pin = LED_F1_PIN_ALL;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(LED_F1_PORT, &GPIO_InitStructure);
+  
+  LED_F2_OFF(LED_F2_PIN_ALL);
+  GPIO_InitStructure.GPIO_Pin = LED_F2_PIN_ALL;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(LED_F2_PORT, &GPIO_InitStructure);
+  
+  LAMP_CAST_OFF();
+  GPIO_InitStructure.GPIO_Pin = LAMP_CAST_PIN;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(LAMP_CAST_PORT, &GPIO_InitStructure);
+
+  BOX_CHEST_OFF();
+  GPIO_InitStructure.GPIO_Pin = BOX_CHEST_PIN;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(BOX_CHEST_PORT, &GPIO_InitStructure);
+  
+  BOX_SWORD_OFF();
+  GPIO_InitStructure.GPIO_Pin = BOX_SWORD_PIN;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(BOX_SWORD_PORT, &GPIO_InitStructure);
+  
   DOOR_OFF();
   GPIO_InitStructure.GPIO_Pin = DOOR_PIN;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(DOOR_PORT, &GPIO_InitStructure);
   
-  LAMP_OFF(LAMP_PIN_ALL);
-  GPIO_InitStructure.GPIO_Pin = LAMP_PIN_ALL;
+  LAMP_OFF();
+  GPIO_InitStructure.GPIO_Pin = LAMP_PIN;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(LAMP_PORT, &GPIO_InitStructure);
@@ -276,22 +323,26 @@ static void hardware_init(void) {
   GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource1);
   GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource2);
   GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource3);
-	GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource5);
-  GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource6);
-  GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource8);
-  GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource9);
-  GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource10);
-  GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource11);
-  GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource12);
-  GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource15);
+  GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource4);
+	GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource5);
+  GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource6);
+  GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource7);
+  GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource8);
+  GPIO_EXTILineConfig(GPIO_PortSourceGPIOB, GPIO_PinSource9);
+  GPIO_EXTILineConfig(GPIO_PortSourceGPIOE, GPIO_PinSource10);
+  GPIO_EXTILineConfig(GPIO_PortSourceGPIOE, GPIO_PinSource11);
+  GPIO_EXTILineConfig(GPIO_PortSourceGPIOE, GPIO_PinSource12);
+  GPIO_EXTILineConfig(GPIO_PortSourceGPIOE, GPIO_PinSource13);
+  GPIO_EXTILineConfig(GPIO_PortSourceGPIOE, GPIO_PinSource14);
+  GPIO_EXTILineConfig(GPIO_PortSourceGPIOE, GPIO_PinSource15);
   
-	EXTI_InitStructure.EXTI_Line = PYRO1_PIN|PYRO2_PIN;
+	EXTI_InitStructure.EXTI_Line = PYRO_PIN|LASER_RX_PIN_ALL;
   EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
   EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
   EXTI_InitStructure.EXTI_LineCmd = ENABLE;
   EXTI_Init(&EXTI_InitStructure);  
 	
-	EXTI_InitStructure.EXTI_Line = CRAB_PIN|TREAD_PIN_ALL|LASER_REV_PIN;
+	EXTI_InitStructure.EXTI_Line = BUTTON_PIN_ALL|LASER_RX5_PIN|HALL_PIN_ALL;
   EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
   EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
   EXTI_InitStructure.EXTI_LineCmd = ENABLE;
@@ -310,6 +361,9 @@ static void hardware_init(void) {
   NVIC_Init(&NVIC_InitStructure);
 
 	NVIC_InitStructure.NVIC_IRQChannel = EXTI3_IRQn;
+  NVIC_Init(&NVIC_InitStructure);
+  
+	NVIC_InitStructure.NVIC_IRQChannel = EXTI4_IRQn;
   NVIC_Init(&NVIC_InitStructure);
   
 	NVIC_InitStructure.NVIC_IRQChannel = EXTI9_5_IRQn;

@@ -35,9 +35,9 @@ int main(void)
 static portTASK_FUNCTION( vLEDFlashTask, pvParameters ) {
   for(;;)
   {
-    GPIO_SetBits(GPIOA, GPIO_Pin_7);
+    GPIO_SetBits(GPIOC, GPIO_Pin_1);
     vTaskDelay(500);
-    GPIO_ResetBits(GPIOA, GPIO_Pin_7);
+    GPIO_ResetBits(GPIOC, GPIO_Pin_1);
     vTaskDelay(500);
   }
 }
@@ -58,7 +58,9 @@ void BSP_init(void) {
   RCC_APB2PeriphClockCmd(RCC_APB2Periph_AFIO | 
                          RCC_APB2Periph_GPIOA | 
                          RCC_APB2Periph_GPIOB |
-                         RCC_APB2Periph_GPIOC, ENABLE);  
+                         RCC_APB2Periph_GPIOC |
+                         RCC_APB2Periph_GPIOD |
+                         RCC_APB2Periph_GPIOE, ENABLE);  
   
   /* SWJ remap: disable JTAG, enable SWO */
   GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
@@ -69,10 +71,10 @@ void BSP_init(void) {
 #endif
   
   /* Configure LED(PA7) GPIO */
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_1;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(GPIOA, &GPIO_InitStructure);
+  GPIO_Init(GPIOC, &GPIO_InitStructure);
 }
 
 
