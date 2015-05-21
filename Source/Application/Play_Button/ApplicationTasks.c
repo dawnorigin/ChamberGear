@@ -20,35 +20,35 @@ enum {
   FINISH
 };
 /* Private macro -------------------------------------------------------------*/
-#define PLAYBOTTON_STACK_SIZE   (configMINIMAL_STACK_SIZE * 2)
-#define PLAYBOTTON_PRIORITY			( tskIDLE_PRIORITY + 1 )
+#define PLAYBOTTON_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
+#define PLAYBOTTON_PRIORITY			  (tskIDLE_PRIORITY + 1)
 
-#define HITBOTTON_STACK_SIZE    (configMINIMAL_STACK_SIZE * 3)
-#define HITBOTTON_PRIORITY			( tskIDLE_PRIORITY + 1 )
+#define HITBOTTON_STACK_SIZE      (configMINIMAL_STACK_SIZE * 3)
+#define HITBOTTON_PRIORITY			  (tskIDLE_PRIORITY + 1)
 
-#define PLAY_BUTTON_PORT        (GPIOA)
-#define PLAY_BUTTON_PIN         (GPIO_Pin_0)
-#define PLAY_BUTTON_STATUS()    (GPIO_ReadInputDataBit(PLAY_BUTTON_PORT, \
+#define PLAY_BUTTON_PORT          (GPIOA)
+#define PLAY_BUTTON_PIN           (GPIO_Pin_0)
+#define PLAY_BUTTON_STATUS()      (GPIO_ReadInputDataBit(PLAY_BUTTON_PORT, \
                                                      PLAY_BUTTON_PIN))
 #define ENABLE_PLAY_BUTTON_IT()   {EXTI->IMR |= EXTI_Line0;}
 #define DISABLE_PLAY_BUTTON_IT()  {EXTI->IMR &= ~EXTI_Line0;}
 
-#define HIT_BUTTON_PORT         (GPIOA)
-#define HIT_BUTTON_PIN          (GPIO_Pin_1)
-#define HIT_BUTTON_STATUS()     (GPIO_ReadInputDataBit(HIT_BUTTON_PORT, \
+#define HIT_BUTTON_PORT           (GPIOA)
+#define HIT_BUTTON_PIN            (GPIO_Pin_1)
+#define HIT_BUTTON_STATUS()       (GPIO_ReadInputDataBit(HIT_BUTTON_PORT, \
                                                      HIT_BUTTON_PIN))
 #define ENABLE_HIT_BUTTON_IT()    {EXTI->IMR |= EXTI_Line1;}
 #define DISABLE_HIT_BUTTON_IT()   {EXTI->IMR &= ~EXTI_Line1;}
 
-#define LAMP_PORT   (GPIOB)
-#define LAMP_PIN    (GPIO_Pin_0)
-#define LAMP_OFF()  {GPIO_SetBits(LAMP_PORT, LAMP_PIN);}
-#define LAMP_ON()   {GPIO_ResetBits(LAMP_PORT, LAMP_PIN);}
+#define LAMP_PORT                 (GPIOB)
+#define LAMP_PIN                  (GPIO_Pin_0)
+#define LAMP_OFF()                {GPIO_SetBits(LAMP_PORT, LAMP_PIN);}
+#define LAMP_ON()                 {GPIO_ResetBits(LAMP_PORT, LAMP_PIN);}
 
-#define LOCK_PORT   (GPIOB)
-#define LOCK_PIN    (GPIO_Pin_1)
-#define LOCK_OFF()  {GPIO_SetBits(LOCK_PORT, LOCK_PIN);}
-#define LOCK_ON()   {GPIO_ResetBits(LOCK_PORT, LOCK_PIN);}
+#define LOCK_PORT                 (GPIOB)
+#define LOCK_PIN                  (GPIO_Pin_1)
+#define LOCK_OFF()                {GPIO_SetBits(LOCK_PORT, LOCK_PIN);}
+#define LOCK_ON()                 {GPIO_ResetBits(LOCK_PORT, LOCK_PIN);}
 
 /* Private variables ---------------------------------------------------------*/
 SemaphoreHandle_t xResetSemaphore = NULL;
@@ -142,7 +142,7 @@ static portTASK_FUNCTION( vHitTask, pvParameters ) {
       }
       case IDLE: {
         /* Occur when play button is pressed */        
-        if (xSemaphoreTake(xHitSemaphore, portMAX_DELAY) == pdTRUE) {
+        if (pdTRUE == xSemaphoreTake(xHitSemaphore, portMAX_DELAY)) {
           /* Skip the key jitter step */
           vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
           /* Check whether the button was pressed */
@@ -159,7 +159,7 @@ static portTASK_FUNCTION( vHitTask, pvParameters ) {
       }
       case PROCESS: {
         /* Occur when play button is pressed */        
-        if (xSemaphoreTake(xHitSemaphore, portMAX_DELAY) == pdTRUE) {
+        if (pdTRUE == xSemaphoreTake(xHitSemaphore, portMAX_DELAY)) {
           /* Skip the key jitter step */
           vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
           /* Check whether the button was pressed */
@@ -201,7 +201,7 @@ static portTASK_FUNCTION( vHitTask, pvParameters ) {
       }
       case FINISH: {
         /* Reset logic */
-        if (xSemaphoreTake(xResetSemaphore, portMAX_DELAY) == pdTRUE) {
+        if (pdTRUE == xSemaphoreTake(xResetSemaphore, portMAX_DELAY)) {
           status = INIT;
         }
         break;

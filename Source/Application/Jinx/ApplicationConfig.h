@@ -5,6 +5,7 @@
 #define SMOKE_MS              (2000)
 #define TWO_FEET_INTERVAL_MS  (500)
 #define ESCAPE_LASER_MS       (3000)
+#define MAX_TREAD_MS          (120000)
 #define KEEP_LASER_ON_MS      (1000)
 #define LAMP_ERR_FLASH_MS     (300)
 

@@ -17,14 +17,18 @@
 #define FILE_7      (7)
 #define FILE_8      (8)
 #define FILE_9      (9)
+#define FILE_10      (10)
 
 #define ENTRANCE_AUDIO          FILE_1
 #define CRAB_REMOVE_AUDIO       FILE_2
 #define CRAB_SET_AUDIO          FILE_3
 #define DJ_POWER_ON_AUDIO       FILE_4
 #define DJ_BUTTON_ERR_AUDIO     FILE_5
-#define DJ_TREAD_ERR_AUDIO      FILE_6
-#define DOOR_OPEN_AUDIO         FILE_7
+#define DJ_BLUE_AUDIO           FILE_6
+#define DJ_GREEN_AUDIO          FILE_7
+#define DJ_PINK_AUDIO           FILE_8
+#define DJ_TREAD_ERR_AUDIO      FILE_9
+#define DOOR_OPEN_AUDIO         FILE_10
 
 int player_play_file(short index, TickType_t xTicksToWait);
 

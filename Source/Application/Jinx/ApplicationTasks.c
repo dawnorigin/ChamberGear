@@ -133,6 +133,8 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
   int status = INIT;
   IT_event tread_event;
   TickType_t tick_tmp;
+  TickType_t tick_total;
+  TickType_t tick_delay;
 	/* The parameters are not used. */
 	( void ) pvParameters;
   
@@ -181,11 +183,20 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
       }
       case STEP0:
       case STEP7: {
-        if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, portMAX_DELAY)) {
+        if (STEP0 == status) {
+          tick_delay = portMAX_DELAY;
+        } else {
+          tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
+        }
+        if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
           /* Skip the key jitter step */
           vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
           tread_event.event &= TREAD_PIN_ALL;
           if (Bit_RESET == TREAD_STATUS(tread_event.event)) {
+            if (STEP0 == status) {
+              /* Record the current time */
+              tick_total = xTaskGetTickCount();
+            }
             if (tread_event.event & TREAD_PIN_MINE) {
               status = ERR_MINE;
               break;
@@ -200,12 +211,15 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             }
           }
           ENABLE_TREAD_IT(TREAD_PIN_ALL);
+        } else {
+          status = ERR_ORDER;
         }
         break;
       }
       case STEP1:
       case STEP6: {
-        if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, portMAX_DELAY)) {
+        tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
+        if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
           /* Skip the key jitter step */
           vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
           tread_event.event &= TREAD_PIN_ALL;
@@ -224,12 +238,15 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             }
           }
           ENABLE_TREAD_IT(TREAD_PIN_ALL);
+        } else {
+          status = ERR_ORDER;
         }
         break;
       }
       case STEP2:
       case STEP5: {
-        if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, portMAX_DELAY)) {
+        tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
+        if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
           /* Skip the key jitter step */
           vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
           tread_event.event &= TREAD_PIN_ALL;
@@ -248,12 +265,15 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             }
           }
           ENABLE_TREAD_IT(TREAD_PIN_ALL);
+        } else {
+          status = ERR_ORDER;
         }
         break;
       }
       case STEP3:
       case STEP4: {
-        if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, portMAX_DELAY)) {
+        tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
+        if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
           /* Skip the key jitter step */
           vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
           tread_event.event &= TREAD_PIN_ALL;
@@ -289,12 +309,15 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             }
           }
           ENABLE_TREAD_IT(TREAD_PIN_ALL);
+        } else {
+          status = ERR_ORDER;
         }
         break;
       }
       case STEP3_1:
       case STEP4_1: {
-        if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, portMAX_DELAY)) {
+        tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
+        if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
           /* Skip the key jitter step */
           vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
           tread_event.event &= TREAD_PIN_ALL;
@@ -319,12 +342,15 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             }
           }
           ENABLE_TREAD_IT(TREAD_PIN_ALL);
+        } else {
+          status = ERR_ORDER;
         }
         break;
       }
       case STEP3_2:
       case STEP4_2: {
-        if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, portMAX_DELAY)) {
+        tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
+        if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
           /* Skip the key jitter step */
           vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
           tread_event.event &= TREAD_PIN_ALL;
@@ -349,6 +375,8 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             }
           }
           ENABLE_TREAD_IT(TREAD_PIN_ALL);
+        } else {
+          status = ERR_ORDER;
         }
         break;
       }

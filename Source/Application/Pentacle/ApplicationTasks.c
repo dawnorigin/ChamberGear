@@ -22,52 +22,53 @@ enum {
   FINISH
 };
 /* Private macro -------------------------------------------------------------*/
-#define PENTACLE_STACK_SIZE   (configMINIMAL_STACK_SIZE * 2)
-#define PENTACLE_PRIORITY			( tskIDLE_PRIORITY + 1 )
+#define PENTACLE_STACK_SIZE       (configMINIMAL_STACK_SIZE * 2)
+#define PENTACLE_PRIORITY			    (tskIDLE_PRIORITY + 1)
 
-#define INPUT_GEAR_STACK_SIZE (configMINIMAL_STACK_SIZE * 2)
-#define INPUT_GEAR_PRIORITY		( tskIDLE_PRIORITY + 1 )
+#define INPUT_GEAR_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
+#define INPUT_GEAR_PRIORITY		    (tskIDLE_PRIORITY + 1)
 
-#define INPUT_GEAR_PORT       (GPIOA)
-#define INPUT_GEAR_PIN        (GPIO_Pin_0)
-#define INPUT_GEAR_STATUS()   (GPIO_ReadInputDataBit(INPUT_GEAR_PORT, \
+#define INPUT_GEAR_PORT           (GPIOA)
+#define INPUT_GEAR_PIN            (GPIO_Pin_0)
+#define INPUT_GEAR_STATUS()       (GPIO_ReadInputDataBit(INPUT_GEAR_PORT, \
                                                      INPUT_GEAR_PIN))
-#define ENABLE_INPUT_GEAR_IT()  {EXTI->IMR |= EXTI_Line6;}
+#define ENABLE_INPUT_GEAR_IT()    {EXTI->IMR |= INPUT_GEAR_PIN;}
+#define DISABLE_INPUT_GEAR_IT()   {EXTI->IMR |= INPUT_GEAR_PIN;}
 
-#define ELEMENTS_PORT         (GPIOA)
-#define ELEMENT1_PIN          (GPIO_Pin_1)
-#define ELEMENT2_PIN          (GPIO_Pin_2)
-#define ELEMENT3_PIN          (GPIO_Pin_3)
-#define ELEMENT4_PIN          (GPIO_Pin_4)
-#define ELEMENT5_PIN          (GPIO_Pin_5)
-#define ELEMENTS_PINS         (ELEMENT1_PIN|ELEMENT2_PIN|ELEMENT3_PIN \
+#define ELEMENTS_PORT             (GPIOA)
+#define ELEMENT1_PIN              (GPIO_Pin_1)
+#define ELEMENT2_PIN              (GPIO_Pin_2)
+#define ELEMENT3_PIN              (GPIO_Pin_3)
+#define ELEMENT4_PIN              (GPIO_Pin_4)
+#define ELEMENT5_PIN              (GPIO_Pin_5)
+#define ELEMENTS_PINS             (ELEMENT1_PIN|ELEMENT2_PIN|ELEMENT3_PIN \
                                             |ELEMENT4_PIN|ELEMENT5_PIN)
-#define ELEMENTS_STATUS()     GPIO_ReadInputData(ELEMENTS_PORT)
+#define ELEMENTS_STATUS()         GPIO_ReadInputData(ELEMENTS_PORT)
 
-#define PLAYER_BUSY_PORT      (GPIOA)
-#define PLAYER_BUSY_PIN       (GPIO_Pin_8)
-#define PLAYER_BUSY_STATUS()  (GPIO_ReadInputDataBit(PLAYER_BUSY_PORT, \
+#define PLAYER_BUSY_PORT          (GPIOA)
+#define PLAYER_BUSY_PIN           (GPIO_Pin_8)
+#define PLAYER_BUSY_STATUS()      (GPIO_ReadInputDataBit(PLAYER_BUSY_PORT, \
                                                      PLAYER_BUSY_PIN))
 
-#define DOOR_PORT             (GPIOB)
-#define DOOR_PIN              (GPIO_Pin_7)
-#define DOOR_OFF()            {GPIO_SetBits(DOOR_PORT, DOOR_PIN);}
-#define DOOR_ON()             {GPIO_ResetBits(DOOR_PORT, DOOR_PIN);}
+#define DOOR_PORT                 (GPIOB)
+#define DOOR_PIN                  (GPIO_Pin_7)
+#define DOOR_OFF()                {GPIO_SetBits(DOOR_PORT, DOOR_PIN);}
+#define DOOR_ON()                 {GPIO_ResetBits(DOOR_PORT, DOOR_PIN);}
 
-#define LEDS_PORT             (GPIOB)
-#define LED1_PIN              (GPIO_Pin_0)
-#define LED2_PIN              (GPIO_Pin_1)
-#define LED3_PIN              (GPIO_Pin_2)
-#define LED4_PIN              (GPIO_Pin_3)
-#define LED5_PIN              (GPIO_Pin_4)
-#define LEDS_PINS             (LED1_PIN|LED2_PIN|LED3_PIN|LED4_PIN|LED5_PIN)
-#define LED_OFF(x)            {GPIO_ResetBits(LEDS_PORT, (x));}
-#define LED_ON(x)             {GPIO_SetBits(LEDS_PORT, (x));}
+#define LEDS_PORT                 (GPIOB)
+#define LED1_PIN                  (GPIO_Pin_0)
+#define LED2_PIN                  (GPIO_Pin_1)
+#define LED3_PIN                  (GPIO_Pin_2)
+#define LED4_PIN                  (GPIO_Pin_3)
+#define LED5_PIN                  (GPIO_Pin_4)
+#define LEDS_PINS                 (LED1_PIN|LED2_PIN|LED3_PIN|LED4_PIN|LED5_PIN)
+#define LED_OFF(x)                {GPIO_ResetBits(LEDS_PORT, (x));}
+#define LED_ON(x)                 {GPIO_SetBits(LEDS_PORT, (x));}
 
-#define LOCK_PORT             (GPIOB)
-#define LOCK_PIN              (GPIO_Pin_8)
-#define LOCK_OFF()            {GPIO_SetBits(LOCK_PORT, LOCK_PIN);}
-#define LOCK_ON()             {GPIO_ResetBits(LOCK_PORT, LOCK_PIN);}
+#define LOCK_PORT                 (GPIOB)
+#define LOCK_PIN                  (GPIO_Pin_8)
+#define LOCK_OFF()                {GPIO_SetBits(LOCK_PORT, LOCK_PIN);}
+#define LOCK_ON()                 {GPIO_ResetBits(LOCK_PORT, LOCK_PIN);}
 
 /* Private variables ---------------------------------------------------------*/
 SemaphoreHandle_t xResetSemaphore = NULL;
@@ -151,6 +152,9 @@ static portTASK_FUNCTION( vInputGearTask, pvParameters ) {
       case INIT: {
         /* Lock the box */
         LOCK_OFF();
+        /* Disable play button interrupt */
+        DISABLE_INPUT_GEAR_IT();
+        while (pdTRUE == xSemaphoreTake(xInputSemaphore, 0));
         /* Enable play button interrupt */
         ENABLE_INPUT_GEAR_IT();
         status = IDLE;
@@ -158,7 +162,7 @@ static portTASK_FUNCTION( vInputGearTask, pvParameters ) {
       }
       case IDLE: {
         /* Occur when play button is pressed */        
-        if (xSemaphoreTake(xInputSemaphore, portMAX_DELAY) == pdTRUE) {
+        if (pdTRUE == xSemaphoreTake(xInputSemaphore, portMAX_DELAY)) {
           /* Skip the key jitter step */
           vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
           /* Check whether the button was pressed */
@@ -179,7 +183,7 @@ static portTASK_FUNCTION( vInputGearTask, pvParameters ) {
       }
       case FINISH: {
         /* Reset logic */
-        if (xSemaphoreTake(xResetSemaphore, portMAX_DELAY) == pdTRUE) {
+        if (pdTRUE == xSemaphoreTake(xResetSemaphore, portMAX_DELAY)) {
           status = INIT;
         }
         break;

@@ -381,12 +381,15 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
       case DJ_BLUE:
         LED_ON(LED1_PIN);
         LAMP_ON(LAMP1_PIN);
+        player_play_file(DJ_BLUE_AUDIO, 0);
       case DJ_GREEN:
         LED_ON(LED2_PIN);
         LAMP_ON(LAMP2_PIN);
+        player_play_file(DJ_GREEN_AUDIO, 0);
       case DJ_PINK: {
         LED_ON(LED3_PIN);
         LAMP_ON(LAMP3_PIN);
+        player_play_file(DJ_PINK_AUDIO, 0);
         int index;
         int i = DJ_TREAD_RANDOM_TIMES;
         

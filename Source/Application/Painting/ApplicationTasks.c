@@ -19,21 +19,21 @@ enum {
   FINISH
 };
 /* Private macro -------------------------------------------------------------*/
-#define PAINTING_STACK_SIZE     (configMINIMAL_STACK_SIZE * 3)
-#define PAINTING_PRIORITY       ( tskIDLE_PRIORITY + 1 )
+#define PAINTING_STACK_SIZE (configMINIMAL_STACK_SIZE * 3)
+#define PAINTING_PRIORITY   (tskIDLE_PRIORITY + 1)
 
-#define WEIGHT_STACK_SIZE       (configMINIMAL_STACK_SIZE * 3)
-#define WEIGHT_PRIORITY         ( tskIDLE_PRIORITY + 1 )
+#define WEIGHT_STACK_SIZE   (configMINIMAL_STACK_SIZE * 3)
+#define WEIGHT_PRIORITY     (tskIDLE_PRIORITY + 1)
 
-#define DOOR_PORT   (GPIOB)
-#define DOOR_PIN    (GPIO_Pin_0)
-#define DOOR_OFF()  {GPIO_SetBits(DOOR_PORT, DOOR_PIN);}
-#define DOOR_ON()   {GPIO_ResetBits(DOOR_PORT, DOOR_PIN);}
+#define DOOR_PORT           (GPIOB)
+#define DOOR_PIN            (GPIO_Pin_0)
+#define DOOR_OFF()          {GPIO_SetBits(DOOR_PORT, DOOR_PIN);}
+#define DOOR_ON()           {GPIO_ResetBits(DOOR_PORT, DOOR_PIN);}
 
-#define LOCK_PORT   (GPIOB)
-#define LOCK_PIN    (GPIO_Pin_1)
-#define LOCK_OFF()  {GPIO_SetBits(LOCK_PORT, LOCK_PIN);}
-#define LOCK_ON()   {GPIO_ResetBits(LOCK_PORT, LOCK_PIN);}
+#define LOCK_PORT           (GPIOB)
+#define LOCK_PIN            (GPIO_Pin_1)
+#define LOCK_OFF()          {GPIO_SetBits(LOCK_PORT, LOCK_PIN);}
+#define LOCK_ON()           {GPIO_ResetBits(LOCK_PORT, LOCK_PIN);}
 
 #define SWITCH_PORT         (GPIOA)
 #define SWITCH_STATUS(x)    GPIO_ReadInputDataBit(SWITCH_PORT, (1 << (x)))
@@ -67,6 +67,7 @@ static portTASK_FUNCTION( vPaintingTask, pvParameters ) {
         switch_passed = 0;
         status = IDLE;
         LOCK_OFF();
+        while (xQueueReceive(xSwitchQueue, &switch_no, 0));
         ENABLE_SWITCH_IT(1);
         break;
       }
