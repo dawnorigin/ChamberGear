@@ -288,19 +288,19 @@ void EXTI1_IRQHandler(void)
 *******************************************************************************/
 void EXTI2_IRQHandler(void)
 {
-  extern SemaphoreHandle_t xLaserSemaphore;
-  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-  if (EXTI_GetITStatus(EXTI_Line2) != RESET) {
-    
-    /* Disable the interrupt */
-    EXTI->IMR &= ~ EXTI_Line2;
-    
-    xSemaphoreGiveFromISR(xLaserSemaphore, &xHigherPriorityTaskWoken);
-    
-    /* Clear interrupt pending bit */
-    EXTI_ClearITPendingBit(EXTI_Line2);
-  }
-  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
+//  extern SemaphoreHandle_t xLaserSemaphore;
+//  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+//  if (EXTI_GetITStatus(EXTI_Line2) != RESET) {
+//    
+//    /* Disable the interrupt */
+//    EXTI->IMR &= ~ EXTI_Line2;
+//    
+//    xSemaphoreGiveFromISR(xLaserSemaphore, &xHigherPriorityTaskWoken);
+//    
+//    /* Clear interrupt pending bit */
+//    EXTI_ClearITPendingBit(EXTI_Line2);
+//  }
+//  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
 /*******************************************************************************
@@ -481,7 +481,7 @@ void CAN_SCE_IRQHandler(void)
 *******************************************************************************/
 void EXTI9_5_IRQHandler(void)
 {
-  extern QueueHandle_t xTreadQueue;
+  extern QueueHandle_t xShootingQueue;
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
   IT_event event;
   
@@ -493,7 +493,7 @@ void EXTI9_5_IRQHandler(void)
     EXTI_ClearITPendingBit(event.event);
     
     event.time_stamp = xTaskGetTickCountFromISR();
-    xQueueSendFromISR(xTreadQueue, &event, &xHigherPriorityTaskWoken);
+    xQueueSendFromISR(xShootingQueue, &event, &xHigherPriorityTaskWoken);
   }
   portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
@@ -711,21 +711,21 @@ void USART3_IRQHandler(void)
 *******************************************************************************/
 void EXTI15_10_IRQHandler(void)
 {
-  extern QueueHandle_t xTreadQueue;
-  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-  IT_event event;
-  
-  event.event = EXTI->PR & EXTI->IMR & 0xFC00;
-  if (event.event != RESET) {
-    /* Disable the interrupt */
-    EXTI->IMR &= ~ event.event;
-    /* Clear interrupt pending bit */
-    EXTI_ClearITPendingBit(event.event);
-    
-    event.time_stamp = xTaskGetTickCountFromISR();
-    xQueueSendFromISR(xTreadQueue, &event, &xHigherPriorityTaskWoken);
-  }
-  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
+//  extern QueueHandle_t xTreadQueue;
+//  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+//  IT_event event;
+//  
+//  event.event = EXTI->PR & EXTI->IMR & 0xFC00;
+//  if (event.event != RESET) {
+//    /* Disable the interrupt */
+//    EXTI->IMR &= ~ event.event;
+//    /* Clear interrupt pending bit */
+//    EXTI_ClearITPendingBit(event.event);
+//    
+//    event.time_stamp = xTaskGetTickCountFromISR();
+//    xQueueSendFromISR(xTreadQueue, &event, &xHigherPriorityTaskWoken);
+//  }
+//  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
 /*******************************************************************************

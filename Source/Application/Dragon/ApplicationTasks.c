@@ -1,6 +1,7 @@
 /* Includes ------------------------------------------------------------------*/
 /* Library includes. */
 #include "stm32f10x.h"
+#include <stdlib.h>
 /* Scheduler includes. */
 #include "FreeRTOS.h"
 #include "task.h"
@@ -15,29 +16,21 @@
 enum {
   INIT,
   IDLE,
-  STEP1,
-  STEP2,
-  STEP3,
-  STEP3_1,
-  STEP3_2,
-  STEP4,
-  STEP4_1,
-  STEP4_2,
-  STEP5,
-  STEP6,
-  STEP7,
-  ERR_ORDER,
-  ERR_MINE,
+  SHOOTING,
   LASER,
+  ESCAPE_LASER,
+  ENABLE_BUTTON,
+  BUTTON,
   ERR_LASER,
+  
   CRAB_BOX,
   ACTION,
   CAST,
   FINISH
 };
 /* Private macro -------------------------------------------------------------*/
-#define JUMP_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
-#define JUMP_PRIORITY			  (tskIDLE_PRIORITY + 1 )
+#define DRAGON_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
+#define DRAGON_PRIORITY			  (tskIDLE_PRIORITY + 1 )
 
 #define PYRO_PORT             (GPIOA)
 #define PYRO_PIN              (GPIO_Pin_0)
@@ -60,12 +53,14 @@ enum {
 #define LASER_RX2_PIN         (GPIO_Pin_6)
 #define LASER_RX3_PIN         (GPIO_Pin_7)
 #define LASER_RX4_PIN         (GPIO_Pin_8)
-#define LASER_RX5_PIN         (GPIO_Pin_9)
 #define LASER_RX_PIN_ALL      (LASER_RX1_PIN|LASER_RX2_PIN| \
                                LASER_RX3_PIN|LASER_RX4_PIN)
 #define LASER_RX_STATUS(x)    GPIO_ReadInputDataBit(LASER_RX_PORT, (x))
-#define ENABLE_LASER_REV_IT()   {EXTI->IMR |= LASER_REV_PIN;}
-#define DISABLE_LASER_REV_IT()  {EXTI->IMR &= (~LASER_REV_PIN);}
+#define ENABLE_LASER_RX_IT(x)   {EXTI->IMR |= (x);}
+#define DISABLE_LASER_RX_IT(x)  {EXTI->IMR &= ~(x);}
+
+#define LASER_ESC_RX_PORT     (GPIOE)
+#define LASER_ESC_RX_PIN      (GPIO_Pin_9)
 
 #define HALL_PORT             (GPIOE)
 #define HALL1_PIN             (GPIO_Pin_10)
@@ -100,8 +95,8 @@ enum {
 #define LASER_TX6_PIN         (GPIO_Pin_15)
 #define LASER_TX_PIN_ALL      (LASER_TX1_PIN|LASER_TX2_PIN|LASER_TX3_PIN| \
                                LASER_TX4_PIN|LASER_TX5_PIN|LASER_TX6_PIN)
-#define LASER_TX_OFF()        {GPIO_SetBits(LASER_TX_PORT, LASER_TX_PIN_ALL);}
-#define LASER_TX_ON()         {GPIO_ResetBits(LASER_TX_PORT, LASER_TX_PIN_ALL);}
+#define LASER_TX_OFF(x)       {GPIO_SetBits(LASER_TX_PORT, (x));}
+#define LASER_TX_ON(x)        {GPIO_ResetBits(LASER_TX_PORT, (x));}
 
 #define LED_BUTTON_PORT       (GPIOC)
 #define LED_BUTTON1_PIN       (GPIO_Pin_6)
@@ -151,6 +146,11 @@ enum {
 #define LED_F2_OFF(x)         {GPIO_SetBits(LED_F2_PORT, (x));}
 #define LED_F2_ON(x)          {GPIO_ResetBits(LED_F2_PORT, (x));}
 
+#define LED_T_F_PORT          (GPIOD)
+#define LED_T_F_PIN_ALL       GPIO_Pin_All
+#define LED_T_F_OFF(x)        {GPIO_SetBits(LED_T_F_PORT, (x));}
+#define LED_T_F_ON(x)         {GPIO_ResetBits(LED_T_F_PORT, (x));}
+
 #define LAMP_CAST_PORT        (GPIOE)
 #define LAMP_CAST_PIN         (GPIO_Pin_0)
 #define LAMP_CAST_OFF()       {GPIO_SetBits(LAMP_CAST_PORT, LAMP_CAST_PIN);}
@@ -177,31 +177,183 @@ enum {
 #define LAMP_ON()            {GPIO_ResetBits(LAMP_PORT, LAMP_PIN);}
 /* Private variables ---------------------------------------------------------*/
 SemaphoreHandle_t xResetSemaphore = NULL;
-/* The queue used to hold step trod */
-QueueHandle_t xTreadQueue;
-SemaphoreHandle_t xLaserSemaphore = NULL;
-SemaphoreHandle_t xCrabSemaphore = NULL;
-SemaphoreHandle_t xPyroSemaphore = NULL;
 /* Used for pyroelectric detector */
 SemaphoreHandle_t xEntranceSemaphore = NULL;
+/* The queue used to hold shooting event */
+QueueHandle_t xShootingQueue;
+/* The queue used to hold buttons event */
+QueueHandle_t xButtonQueue;
+
+SemaphoreHandle_t xCrabSemaphore = NULL;
+SemaphoreHandle_t xPyroSemaphore = NULL;
+
+
+uint16_t led_button[4] = {LED_BUTTON1_PIN, LED_BUTTON2_PIN, 
+                          LED_BUTTON3_PIN, LED_BUTTON4_PIN};
+static uint8_t blood[4] = {5, 5, 3, 3};
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
-static portTASK_FUNCTION( vJumpTask, pvParameters ) {
+
+int random_button(void) {
+  int sum, result;
+  
+  sum = blood[0] + blood[1] + blood[2] + blood[3];
+  result = rand() / (RAND_MAX / sum);
+  if (blood[0]) {
+    if (result < blood[0]) {
+      blood[0]--;
+      return 0;
+    }
+  }
+  if (blood[1]) {
+    if (result < (blood[0] + blood[1])) {
+      blood[1]--;
+      return 1;
+    }
+  }
+  if (blood[2]) {
+    if (result < (blood[0] + blood[1] + blood[2])) {
+      blood[2]--;
+      return 2;
+    }
+  }
+  blood[3]--;
+  return 3;
+}
+
+static portTASK_FUNCTION( vDragonTask, pvParameters ) {
   int status = INIT;
-  IT_event tread_event;
-  TickType_t tick_tmp;
+  IT_event event;
+  TickType_t tick_delay;
+  uint16_t laser_rx_flag;
+  TickType_t tick_escape_laser;
+  TickType_t tick_previous_event;
+    
 	/* The parameters are not used. */
 	( void ) pvParameters;
   
   for(;;) {
     switch (status) {
       case INIT: {
-        
+        /* Turn off the LED on the buton */
+        LED_BUTTON_OFF(LED_BUTTON_PIN_ALL);
+        /* Turn off the blood LEDs */
+        LED_T_F_OFF(LED_T_F_PIN_ALL);
+        /* Turn off the 6 laser transmitter */
+        LASER_TX_OFF(LASER_TX_PIN_ALL);
+        /* Clean buttons interrupt */
+        DISABLE_BUTTON_IT(BUTTON_PIN_ALL);
+        while (pdTRUE == xQueueReceive(xButtonQueue, &event, 0));
+        /* Clean shooting laser reciever interrupt */
+        laser_rx_flag = 0;
+        DISABLE_LASER_RX_IT(LASER_RX_PIN_ALL);
+        while (pdTRUE == xQueueReceive(xShootingQueue, &event, 0));
+        /* Clean pyroelectric detector interrupt */
+        DISABLE_PYRO_IT();
+        while (pdTRUE == xSemaphoreTake(xEntranceSemaphore, 0));
+        ENABLE_PYRO_IT();
         status = IDLE;
         break;
       }
       case IDLE: {
-        status = FINISH;
+        if (pdTRUE == xSemaphoreTake(xEntranceSemaphore, portMAX_DELAY)) {
+          /* Skip the key jitter step */
+          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
+          if (Bit_RESET != PYRO_STATUS()) {
+            /* Play audio */
+            player_play_file(ENTRANCE_AUDIO, 0);
+            ENABLE_LASER_RX_IT(LASER_RX_PIN_ALL);
+            status = SHOOTING;
+          } else {
+            ENABLE_PYRO_IT();
+          }
+        }
+        break;
+      }
+      case SHOOTING: {
+        if (pdTRUE == xQueueReceive(xShootingQueue, &event, portMAX_DELAY)) {
+          /* Skip the key jitter step */
+          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
+          event.event &= LASER_RX_PIN_ALL;
+          if (Bit_RESET != LASER_RX_STATUS(event.event)) {
+            /* Play audio */
+            player_play_file(SHOOTING_AUDIO, 0);
+            laser_rx_flag |= event.event;
+            if (LASER_RX_PIN_ALL == (laser_rx_flag & LASER_RX_PIN_ALL)) {
+              status = LASER;
+            }
+          } else {
+            ENABLE_LASER_RX_IT(LASER_RX_PIN_ALL);
+          }
+        }
+        break;
+      }
+      case LASER: {
+        /* Play audio */
+        player_play_file(LASER_AUDIO, 0);
+        /* Wait for audio ending */
+        while(Bit_RESET != PLAYER_BUSY_STATUS());
+        for (;;) {
+          if (Bit_RESET != PLAYER_BUSY_STATUS())
+            break;
+        }
+        /* Turn on the 6 laser transmitter */
+        LASER_TX_ON(LASER_TX_PIN_ALL);
+        /* Wait for the laser ray stable */
+        vTaskDelay((TickType_t)10);
+//        /* Enable the laser switch reciever interrupt */
+//        ENABLE_LASER_RX_IT(LASER_RX_SWITCH_PIN);
+//        /* Record the current time for the player escaping the laser ray */
+//        tick_previous_event = tick_escape_laser = xTaskGetTickCount();
+        status = ESCAPE_LASER;
+        break;
+      }
+      case ESCAPE_LASER: {
+        tick_delay = tick_escape_laser + ESCAPE_LASER_MS - xTaskGetTickCount();
+        if (pdTRUE == xQueueReceive(xShootingQueue, &event, tick_delay)) {
+//          if (LASER_RX_SWITCH_PIN == event.event & LASER_RX_SWITCH_PIN;) {
+//            if (Bit_RESET == LASER_RX_STATUS(LASER_RX_SWITCH_PIN)) {
+//              /* The laser ray has been blocked */
+//              
+//            } else {
+//              /* The laser ray has been released */
+//            }
+//          } else {
+//            /* Enable the laser switch reciever interrupt */
+//            ENABLE_LASER_RX_IT(LASER_RX_SWITCH_PIN);
+//          }
+        } else {
+        }
+        break;
+      }
+      case ENABLE_BUTTON: {
+        /* Play audio */
+        player_play_file(BUTTON_AUDIO, 0);
+        /* LEDs show */
+        LED_BUTTON_ON(LED_BUTTON_PIN_ALL);
+        LED_T_F_ON(LED_T_F_PIN_ALL);
+        vTaskDelay((TickType_t)1000);
+        LED_BUTTON_OFF(LED_BUTTON_PIN_ALL);
+        /* Enable button interrupt */
+        ENABLE_BUTTON_IT(BUTTON_PIN_ALL);
+        status = BUTTON;
+        break;
+      }
+      case BUTTON: {
+        int index;
+        
+        index = random_button();
+        LED_BUTTON_OFF(led_button[index]);
+        if (xQueueReceive(xButtonQueue, &event, LED_BUTTON_ON_DELAY_MS)) {
+          /* Skip the key jitter step */
+          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
+          event.event &= BUTTON_PIN_ALL;
+          if (Bit_RESET == BUTTON_STATUS(event.event)) {
+            if (led_button[index] == (event.event & led_button[index])) {
+              
+            }
+          }
+        }
         break;
       }
       case FINISH: {
@@ -237,10 +389,10 @@ static void hardware_init(void) {
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(LASER_RX_PORT, &GPIO_InitStructure);
 
-  GPIO_InitStructure.GPIO_Pin = LASER_RX5_PIN;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+  GPIO_InitStructure.GPIO_Pin = LASER_ESC_RX_PIN;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_OD;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(LASER_RX_PORT, &GPIO_InitStructure);
+  GPIO_Init(LASER_ESC_RX_PORT, &GPIO_InitStructure);
   
   GPIO_InitStructure.GPIO_Pin = HALL_PIN_ALL;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
@@ -253,7 +405,7 @@ static void hardware_init(void) {
   GPIO_Init(HALL_PORT, &GPIO_InitStructure);
   
   /* Configure output GPIO */
-  LASER_TX_OFF();
+  LASER_TX_OFF(LASER_TX_PIN_ALL);
   GPIO_InitStructure.GPIO_Pin = LASER_TX_PIN_ALL;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
@@ -342,11 +494,17 @@ static void hardware_init(void) {
   EXTI_InitStructure.EXTI_LineCmd = ENABLE;
   EXTI_Init(&EXTI_InitStructure);  
 	
-	EXTI_InitStructure.EXTI_Line = BUTTON_PIN_ALL|LASER_RX5_PIN|HALL_PIN_ALL;
+	EXTI_InitStructure.EXTI_Line = BUTTON_PIN_ALL|HALL_PIN_ALL;
   EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
   EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
   EXTI_InitStructure.EXTI_LineCmd = ENABLE;
   EXTI_Init(&EXTI_InitStructure);
+
+//	EXTI_InitStructure.EXTI_Line = LASER_RX_SWITCH_PIN;
+//  EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
+//  EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising_Falling;
+//  EXTI_InitStructure.EXTI_LineCmd = ENABLE;
+//  EXTI_Init(&EXTI_InitStructure);
   
   NVIC_InitStructure.NVIC_IRQChannel = EXTI0_IRQn;
   NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 
@@ -422,10 +580,10 @@ void init_tasks(void) {
   xEntranceSemaphore = xSemaphoreCreateBinary();
   
   /* Create switch queue */
-  xTreadQueue = xQueueCreate(8, (unsigned portBASE_TYPE)sizeof(IT_event));  
+  xShootingQueue = xQueueCreate(10, (unsigned portBASE_TYPE)sizeof(IT_event));
   
-  /* Create laser semaphore */
-  xLaserSemaphore = xSemaphoreCreateBinary();
+  /* Create button queue */
+  xButtonQueue = xQueueCreate(10, (unsigned portBASE_TYPE)sizeof(IT_event));
   
   /* Create crab remove semaphore */
   xCrabSemaphore = xSemaphoreCreateBinary();
@@ -433,11 +591,11 @@ void init_tasks(void) {
   /* Create pyro detector semaphore */
   xPyroSemaphore = xSemaphoreCreateBinary();
   
-  xTaskCreate( vJumpTask, 
-              "Jump", 
-              JUMP_STACK_SIZE, 
+  xTaskCreate( vDragonTask, 
+              "Dragon", 
+              DRAGON_STACK_SIZE, 
               NULL, 
-              JUMP_PRIORITY, 
+              DRAGON_PRIORITY, 
               ( TaskHandle_t * ) NULL );
   
 }

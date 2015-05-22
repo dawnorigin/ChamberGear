@@ -395,7 +395,7 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
         
         while (0 != i) {
           ENABLE_TREAD_IT(TREAD_PIN_ALL);
-          index = (rand() % (RAND_MAX / 4));
+          index = (rand() / (RAND_MAX / 4));
           CAST_LAMP_ON(cast_lamp[index]);
           if (pdTRUE == xQueueReceive(xTreadQueue, &event, DJ_TREAD_DELAY_MS)) {
             /* Skip the key jitter step */
