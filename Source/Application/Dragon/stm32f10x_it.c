@@ -264,14 +264,16 @@ void EXTI0_IRQHandler(void)
 *******************************************************************************/
 void EXTI1_IRQHandler(void)
 {
-  extern SemaphoreHandle_t xCrabSemaphore;
+  extern QueueHandle_t xButtonQueue;
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+  IT_event event = {.event = EXTI_Line1};
+  
   if (EXTI_GetITStatus(EXTI_Line1) != RESET) {
     
     /* Disable the interrupt */
     EXTI->IMR &= ~ EXTI_Line1;
     
-    xSemaphoreGiveFromISR(xCrabSemaphore, &xHigherPriorityTaskWoken);
+    xQueueSendFromISR(xButtonQueue, &event, &xHigherPriorityTaskWoken);
     
     /* Clear interrupt pending bit */
     EXTI_ClearITPendingBit(EXTI_Line1);
@@ -288,19 +290,21 @@ void EXTI1_IRQHandler(void)
 *******************************************************************************/
 void EXTI2_IRQHandler(void)
 {
-//  extern SemaphoreHandle_t xLaserSemaphore;
-//  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-//  if (EXTI_GetITStatus(EXTI_Line2) != RESET) {
-//    
-//    /* Disable the interrupt */
-//    EXTI->IMR &= ~ EXTI_Line2;
-//    
-//    xSemaphoreGiveFromISR(xLaserSemaphore, &xHigherPriorityTaskWoken);
-//    
-//    /* Clear interrupt pending bit */
-//    EXTI_ClearITPendingBit(EXTI_Line2);
-//  }
-//  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
+  extern QueueHandle_t xButtonQueue;
+  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+  IT_event event = {.event = EXTI_Line2};
+  
+  if (EXTI_GetITStatus(EXTI_Line2) != RESET) {
+    
+    /* Disable the interrupt */
+    EXTI->IMR &= ~ EXTI_Line2;
+    
+    xQueueSendFromISR(xButtonQueue, &event, &xHigherPriorityTaskWoken);
+    
+    /* Clear interrupt pending bit */
+    EXTI_ClearITPendingBit(EXTI_Line2);
+  }
+  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
 /*******************************************************************************
@@ -312,14 +316,16 @@ void EXTI2_IRQHandler(void)
 *******************************************************************************/
 void EXTI3_IRQHandler(void)
 {
-  extern SemaphoreHandle_t xPyroSemaphore;
+  extern QueueHandle_t xButtonQueue;
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+  IT_event event = {.event = EXTI_Line3};
+  
   if (EXTI_GetITStatus(EXTI_Line3) != RESET) {
     
     /* Disable the interrupt */
     EXTI->IMR &= ~ EXTI_Line3;
     
-    xSemaphoreGiveFromISR(xPyroSemaphore, &xHigherPriorityTaskWoken);
+    xQueueSendFromISR(xButtonQueue, &event, &xHigherPriorityTaskWoken);
     
     /* Clear interrupt pending bit */
     EXTI_ClearITPendingBit(EXTI_Line3);
@@ -336,6 +342,21 @@ void EXTI3_IRQHandler(void)
 *******************************************************************************/
 void EXTI4_IRQHandler(void)
 {
+  extern QueueHandle_t xButtonQueue;
+  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+  IT_event event = {.event = EXTI_Line4};
+  
+  if (EXTI_GetITStatus(EXTI_Line4) != RESET) {
+    
+    /* Disable the interrupt */
+    EXTI->IMR &= ~ EXTI_Line4;
+    
+    xQueueSendFromISR(xButtonQueue, &event, &xHigherPriorityTaskWoken);
+    
+    /* Clear interrupt pending bit */
+    EXTI_ClearITPendingBit(EXTI_Line4);
+  }
+  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
 /*******************************************************************************
@@ -519,6 +540,7 @@ void TIM1_BRK_IRQHandler(void)
 *******************************************************************************/
 void TIM1_UP_IRQHandler(void)
 {
+  TIM_ClearITPendingBit(TIM1, TIM_IT_Update);
 }
 
 /*******************************************************************************
@@ -540,8 +562,19 @@ void TIM1_TRG_COM_IRQHandler(void)
 * Output         : None
 * Return         : None
 *******************************************************************************/
+uint16_t high_time,low_time;
 void TIM1_CC_IRQHandler(void)
 {
+  if (RESET != TIM_GetITStatus(TIM1, TIM_IT_CC1)) {
+    /* Clear TIM1 Capture compare interrupt pending bit */
+    TIM_ClearITPendingBit(TIM1, TIM_IT_CC1);
+    low_time = TIM_GetCapture1(TIM1);
+  } else {
+    /* Clear TIM1 Capture compare interrupt pending bit */
+    TIM_ClearITPendingBit(TIM1, TIM_IT_CC2);
+    high_time = TIM_GetCapture2(TIM1);
+  }
+  
 }
 
 /*******************************************************************************
@@ -711,21 +744,26 @@ void USART3_IRQHandler(void)
 *******************************************************************************/
 void EXTI15_10_IRQHandler(void)
 {
-//  extern QueueHandle_t xTreadQueue;
-//  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-//  IT_event event;
-//  
-//  event.event = EXTI->PR & EXTI->IMR & 0xFC00;
-//  if (event.event != RESET) {
-//    /* Disable the interrupt */
-//    EXTI->IMR &= ~ event.event;
-//    /* Clear interrupt pending bit */
-//    EXTI_ClearITPendingBit(event.event);
-//    
-//    event.time_stamp = xTaskGetTickCountFromISR();
-//    xQueueSendFromISR(xTreadQueue, &event, &xHigherPriorityTaskWoken);
-//  }
-//  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
+  extern QueueHandle_t xSwitchQueue;
+  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+  char number;
+  uint32_t flag;
+  
+  flag = EXTI->PR & EXTI->IMR & 0xFC00;
+  if (flag != RESET) {
+    /* Disable the interrupt */
+    EXTI->IMR &= ~ flag;
+    /* Clear interrupt pending bit */
+    EXTI_ClearITPendingBit(flag);
+    
+    for (number = 1; number <= 6; number++) {
+      if ((flag & (EXTI_Line9 << number)) != RESET) {
+        /* Send a switch event to queue */
+        xQueueSendFromISR( xSwitchQueue, &number, &xHigherPriorityTaskWoken );
+      }
+    }
+  }
+  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
 /*******************************************************************************

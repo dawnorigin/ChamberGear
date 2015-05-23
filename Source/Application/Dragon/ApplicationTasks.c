@@ -21,9 +21,12 @@ enum {
   ESCAPE_LASER,
   ENABLE_BUTTON,
   BUTTON,
+  INIT_PAINTING,
+  PAINTING,
   ERR_LASER,
   
   CRAB_BOX,
+  WAIT_ACTIVE,
   ACTION,
   CAST,
   FINISH
@@ -31,6 +34,9 @@ enum {
 /* Private macro -------------------------------------------------------------*/
 #define DRAGON_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
 #define DRAGON_PRIORITY			  (tskIDLE_PRIORITY + 1 )
+
+#define PAINTING_STACK_SIZE   (configMINIMAL_STACK_SIZE * 3)
+#define PAINTING_PRIORITY     (tskIDLE_PRIORITY + 1)
 
 #define PYRO_PORT             (GPIOA)
 #define PYRO_PIN              (GPIO_Pin_0)
@@ -75,6 +81,9 @@ enum {
 #define HALL_STATUS(x)        GPIO_ReadInputDataBit(HALL_PORT, (x))
 #define ENABLE_HALL_IT(x)     {EXTI->IMR |= (x);}
 #define DISABLE_HALL_IT(x)    {EXTI->IMR &= (~(x));}
+
+#define SWITCH_STATUS(x)      GPIO_ReadInputDataBit(HALL_PORT, (1 << (x)))
+#define ENABLE_SWITCH_IT(x)   {EXTI->IMR |= ((HALL1_PIN >> 1) << (x));}
 
 #define PLAYER_BUSY_PORT      (GPIOA)
 #define PLAYER_BUSY_PIN       (GPIO_Pin_8)
@@ -183,22 +192,29 @@ SemaphoreHandle_t xEntranceSemaphore = NULL;
 QueueHandle_t xShootingQueue;
 /* The queue used to hold buttons event */
 QueueHandle_t xButtonQueue;
-
-SemaphoreHandle_t xCrabSemaphore = NULL;
-SemaphoreHandle_t xPyroSemaphore = NULL;
-
+/* The queue used to hold received characters. */
+QueueHandle_t xSwitchQueue;
+/* Used for active painting task */
+SemaphoreHandle_t xPaintingSemaphore = NULL;
 
 uint16_t led_button[4] = {LED_BUTTON1_PIN, LED_BUTTON2_PIN, 
                           LED_BUTTON3_PIN, LED_BUTTON4_PIN};
-static uint8_t blood[4] = {5, 5, 3, 3};
+uint16_t button[4] = {BUTTON1_PIN, BUTTON2_PIN, BUTTON3_PIN, BUTTON4_PIN};
+static uint8_t blood[4] = {BLOOD_TRUE_EYE, BLOOD_TRUE_EYE, 
+                           BLOOD_FALSE_EYE, BLOOD_FALSE_EYE};
+
+
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 
 int random_button(void) {
-  int sum, result;
+  int result;
   
-  sum = blood[0] + blood[1] + blood[2] + blood[3];
-  result = rand() / (RAND_MAX / sum);
+  result = rand() % (blood[0] + blood[1] + blood[2] + blood[3]);
+  
+  if (0 == result)
+    return -1;
+  
   if (blood[0]) {
     if (result < blood[0]) {
       blood[0]--;
@@ -221,6 +237,14 @@ int random_button(void) {
   return 3;
 }
 
+void led_button_ctl(void) {
+}
+
+void led_button_reset(void) {
+  blood[0] = blood[1] = BLOOD_TRUE_EYE; 
+  blood[2] = blood[3] = BLOOD_FALSE_EYE;
+}
+
 static portTASK_FUNCTION( vDragonTask, pvParameters ) {
   int status = INIT;
   IT_event event;
@@ -235,12 +259,18 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
   for(;;) {
     switch (status) {
       case INIT: {
+        /* TIM enable counter */
+        TIM_Cmd(TIM1, ENABLE);
         /* Turn off the LED on the buton */
         LED_BUTTON_OFF(LED_BUTTON_PIN_ALL);
         /* Turn off the blood LEDs */
         LED_T_F_OFF(LED_T_F_PIN_ALL);
         /* Turn off the 6 laser transmitter */
         LASER_TX_OFF(LASER_TX_PIN_ALL);
+        /* Turn off the cast lamp */
+        LAMP_CAST_OFF();
+        /* Close the chest box */
+        BOX_CHEST_OFF();
         /* Clean buttons interrupt */
         DISABLE_BUTTON_IT(BUTTON_PIN_ALL);
         while (pdTRUE == xQueueReceive(xButtonQueue, &event, 0));
@@ -296,6 +326,7 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
         for (;;) {
           if (Bit_RESET != PLAYER_BUSY_STATUS())
             break;
+          vTaskDelay((TickType_t)10);
         }
         /* Turn on the 6 laser transmitter */
         LASER_TX_ON(LASER_TX_PIN_ALL);
@@ -334,26 +365,61 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
         LED_T_F_ON(LED_T_F_PIN_ALL);
         vTaskDelay((TickType_t)1000);
         LED_BUTTON_OFF(LED_BUTTON_PIN_ALL);
-        /* Enable button interrupt */
-        ENABLE_BUTTON_IT(BUTTON_PIN_ALL);
+        /* Reset eyes' blood */
+        led_button_reset();
+        /* Init random seed */
+        srand(xTaskGetTickCount());
         status = BUTTON;
         break;
       }
       case BUTTON: {
-        int index;
-        
+        int index, j;
+        /* A random button */
         index = random_button();
-        LED_BUTTON_OFF(led_button[index]);
-        if (xQueueReceive(xButtonQueue, &event, LED_BUTTON_ON_DELAY_MS)) {
-          /* Skip the key jitter step */
-          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
-          event.event &= BUTTON_PIN_ALL;
-          if (Bit_RESET == BUTTON_STATUS(event.event)) {
-            if (led_button[index] == (event.event & led_button[index])) {
-              
+        /* Enable button interrupt */
+        ENABLE_BUTTON_IT(BUTTON_PIN_ALL);
+        /* Check whether the button is vailed */
+        if (index != -1) {
+          /* At least one eye has blood */
+          LED_BUTTON_ON(led_button[index]);
+          if (xQueueReceive(xButtonQueue, &event, LED_BUTTON_ON_DELAY_MS)) {
+            /* Skip the key jitter step */
+            vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
+            event.event &= BUTTON_PIN_ALL;
+            if (Bit_RESET == BUTTON_STATUS(event.event)) {
+              if (button[index] == (event.event & button[index])) {
+                if (0 != blood[index])
+                  blood[index]--;
+              } else {
+                for (j = 0; j < 4; j++) {
+                  if ((j != index) && 
+                   (button[j] == (event.event & button[j])) && 
+                   (((j < 2) ? BLOOD_TRUE_EYE : BLOOD_FALSE_EYE) != blood[j])) {
+                    blood[j]++;
+                  }
+                }
+              }
+              led_button_ctl();
             }
           }
+          LED_BUTTON_OFF(led_button[index]);
+        } else {
+          /* All eyes has no blood */
+          LED_BUTTON_OFF(BUTTON_PIN_ALL);
+          LASER_TX_OFF(LASER_TX_PIN_ALL);
+          status = INIT_PAINTING;
         }
+        break;
+      }
+      case INIT_PAINTING: {
+        /* Turn on the cast lamp */
+        LAMP_CAST_ON();
+        /* Close the chest box */
+        BOX_CHEST_ON();
+        /* Clean painting semaphore */
+        xSemaphoreTake(xPaintingSemaphore, 0);
+        /* Active painting task */
+        xSemaphoreGive(xPaintingSemaphore);
         break;
       }
       case FINISH: {
@@ -367,11 +433,119 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
   }
 }
 
+static portTASK_FUNCTION( vPaintingTask, pvParameters ) {
+  int status = INIT;
+  char switch_no;
+  char switch_passed;
+  
+	/* The parameters are not used. */
+	( void ) pvParameters;
+  
+  for(;;) {
+    switch (status) {
+      case WAIT_ACTIVE: {
+        /* Clean hall interrupt queue */
+        DISABLE_HALL_IT(HALL_PIN_ALL);
+        if (pdTRUE == xSemaphoreTake(xPaintingSemaphore, portMAX_DELAY)) {
+          status = INIT;
+        }
+        break;
+      }
+      case INIT: {
+        switch_passed = 0;
+        BOX_SWORD_OFF();
+        DOOR_OFF();
+        /* Clean hall interrupt queue */
+        DISABLE_HALL_IT(HALL_PIN_ALL);
+        while (xQueueReceive(xSwitchQueue, &switch_no, 0));
+        ENABLE_HALL_IT(HALL1_PIN);
+        status = IDLE;
+        break;
+      }
+      case IDLE: {
+        /* Wait for any switch event */  
+        if (pdTRUE == xQueueReceive(xSwitchQueue, &switch_no, portMAX_DELAY)) {
+          /* Skip the key jitter step */
+          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
+          /* Check whether the switch is passing*/
+          if (Bit_RESET == SWITCH_STATUS(switch_no)) {
+            if ((switch_passed + 1) == switch_no) {
+              /* The passsing switch is active */
+              switch_passed++;
+              if (SWITCH_NUMBER == switch_passed) {
+                /* The last switch is passing */
+                status = ACTION;
+              } else {
+                ENABLE_SWITCH_IT(switch_no);
+              }
+            } else {
+              /* The passing switch is inactive */
+              status = INIT;
+              ENABLE_SWITCH_IT(switch_no);
+            }
+          } else {
+            /* Enable play button interrupt */
+            ENABLE_SWITCH_IT(switch_no);
+          }
+        }
+        break;
+      }
+      case ACTION: {
+        DISABLE_HALL_IT(HALL_PIN_ALL);
+        /* Play audio */
+        player_play_file(SWORD_AUDIO, 0);
+        /* Wait for audio ending */
+        while(Bit_RESET != PLAYER_BUSY_STATUS());
+        for (;;) {
+          if (Bit_RESET != PLAYER_BUSY_STATUS())
+            break;
+          vTaskDelay((TickType_t)10);
+        }
+        /* Open the box */
+        BOX_SWORD_ON();
+        /* Wait for removing the sword */
+        for (;;) {
+          if (Bit_RESET != HALL_STATUS(HALL_SWORD_PIN)) {
+            /* Skip the key jitter step */
+            vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
+            if (Bit_RESET != HALL_STATUS(HALL_SWORD_PIN)) {
+              break;
+            }
+          }
+          vTaskDelay((TickType_t)10);
+        }
+        /* Play audio */
+        player_play_file(OPEN_DOOR_AUDIO, 0);
+        /* Wait for audio ending */
+        while(Bit_RESET != PLAYER_BUSY_STATUS());
+        for (;;) {
+          if (Bit_RESET != PLAYER_BUSY_STATUS())
+            break;
+          vTaskDelay((TickType_t)10);
+        }
+        /* Open door */
+        DOOR_ON();
+        status = FINISH;
+        break;
+      }
+      case FINISH: {
+        /* Reset logic */
+        if (pdTRUE == xSemaphoreTake(xResetSemaphore, portMAX_DELAY)) {
+          status = WAIT_ACTIVE;
+        }
+        break;
+      }
+    }
+  }
+}
+
 static void hardware_init(void) {
   GPIO_InitTypeDef GPIO_InitStructure;
   NVIC_InitTypeDef NVIC_InitStructure;
   EXTI_InitTypeDef EXTI_InitStructure;
   USART_InitTypeDef USART_InitStructure;
+  TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+  TIM_ICInitTypeDef TIM_ICInitStructure;
   
   /* Configure input GPIO */
   GPIO_InitStructure.GPIO_Pin = PYRO_PIN;
@@ -390,7 +564,7 @@ static void hardware_init(void) {
   GPIO_Init(LASER_RX_PORT, &GPIO_InitStructure);
 
   GPIO_InitStructure.GPIO_Pin = LASER_ESC_RX_PIN;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AF_OD;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(LASER_ESC_RX_PORT, &GPIO_InitStructure);
   
@@ -499,12 +673,25 @@ static void hardware_init(void) {
   EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
   EXTI_InitStructure.EXTI_LineCmd = ENABLE;
   EXTI_Init(&EXTI_InitStructure);
-
+  
 //	EXTI_InitStructure.EXTI_Line = LASER_RX_SWITCH_PIN;
 //  EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
 //  EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising_Falling;
 //  EXTI_InitStructure.EXTI_LineCmd = ENABLE;
 //  EXTI_Init(&EXTI_InitStructure);
+  
+  /* Enable the TIM1 global Interrupt */
+  NVIC_InitStructure.NVIC_IRQChannel = TIM1_UP_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 
+                          configLIBRARY_KERNEL_INTERRUPT_PRIORITY;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init(&NVIC_InitStructure);
+  
+  NVIC_InitStructure.NVIC_IRQChannel = TIM1_CC_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 
+                          configLIBRARY_KERNEL_INTERRUPT_PRIORITY;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init(&NVIC_InitStructure);
   
   NVIC_InitStructure.NVIC_IRQChannel = EXTI0_IRQn;
   NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 
@@ -567,6 +754,42 @@ static void hardware_init(void) {
   NVIC_Init( &NVIC_InitStructure );
 
   USART_Cmd( USART1, ENABLE );
+  
+  /* Init timer 1 */
+  RCC_APB2PeriphClockCmd(RCC_APB2Periph_TIM1, ENABLE);
+  
+  /*Configure peripheral I/O remapping */
+  GPIO_PinRemapConfig(GPIO_FullRemap_TIM1, ENABLE);  
+  
+  /* Time base configuration */
+  TIM_TimeBaseStructure.TIM_Period = (ESCAPE_LASER_MS * 2);
+  TIM_TimeBaseStructure.TIM_Prescaler = (36000 - 1);
+  TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+  TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure);
+  
+  /* TIM1 configuration: PWM Input mode ------------------------
+     The external signal is connected to TIM1 CH1 pin (PE.09), 
+     The Rising edge is used as active edge,
+     The TIM1 CCR2 is used to compute the frequency value 
+     The TIM1 CCR1 is used to compute the duty cycle value
+  ------------------------------------------------------------ */
+  TIM_ICInitStructure.TIM_Channel = TIM_Channel_1;
+  TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;
+  TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
+  TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
+  TIM_ICInitStructure.TIM_ICFilter = 0x0;
+  
+  TIM_PWMIConfig(TIM1, &TIM_ICInitStructure);
+  /* Select the TIM1 Input Trigger: TI1FP1 */
+  TIM_SelectInputTrigger(TIM1, TIM_TS_TI1FP1);
+  /* Select the slave Mode: Reset Mode */
+  TIM_SelectSlaveMode(TIM1, TIM_SlaveMode_Reset);
+  /* Enable the Master/Slave Mode */
+  TIM_SelectMasterSlaveMode(TIM1, TIM_MasterSlaveMode_Enable);
+  TIM_ClearITPendingBit(TIM1, (TIM_IT_Update | TIM_IT_CC1 | TIM_IT_CC2));
+  /* Enable the TIM1 Interrupt Request */
+  //TIM_ITConfig(TIM1, (TIM_IT_Update | TIM_IT_CC1 | TIM_IT_CC2), ENABLE);
 }
 
 void init_tasks(void) {
@@ -585,17 +808,27 @@ void init_tasks(void) {
   /* Create button queue */
   xButtonQueue = xQueueCreate(10, (unsigned portBASE_TYPE)sizeof(IT_event));
   
-  /* Create crab remove semaphore */
-  xCrabSemaphore = xSemaphoreCreateBinary();
-  
-  /* Create pyro detector semaphore */
-  xPyroSemaphore = xSemaphoreCreateBinary();
   
   xTaskCreate( vDragonTask, 
               "Dragon", 
               DRAGON_STACK_SIZE, 
               NULL, 
               DRAGON_PRIORITY, 
+              ( TaskHandle_t * ) NULL );
+  
+  /* Create switch queue */
+  xSwitchQueue = xQueueCreate( SWITCH_NUMBER, 
+                          ( unsigned portBASE_TYPE ) sizeof( signed char ) );
+  
+  /* Create painting task semaphore */
+  xPaintingSemaphore = xSemaphoreCreateBinary();
+  
+  /* Create painting task */
+  xTaskCreate( vPaintingTask, 
+              "Painting", 
+              PAINTING_STACK_SIZE, 
+              NULL, 
+              PAINTING_PRIORITY, 
               ( TaskHandle_t * ) NULL );
   
 }

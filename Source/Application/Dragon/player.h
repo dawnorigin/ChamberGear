@@ -12,6 +12,8 @@
 #define SHOOTING_AUDIO      (2)
 #define LASER_AUDIO         (3)
 #define BUTTON_AUDIO        (4)
+#define SWORD_AUDIO         (8)
+#define OPEN_DOOR_AUDIO     (9)
 
 int player_play_file(short index, TickType_t xTicksToWait);
 

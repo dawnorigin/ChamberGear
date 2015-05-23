@@ -36,7 +36,7 @@ static portTASK_FUNCTION( vLEDFlashTask, pvParameters ) {
   for(;;)
   {
     GPIO_SetBits(GPIOC, GPIO_Pin_1);
-    vTaskDelay(500);
+    vTaskDelay(300);
     GPIO_ResetBits(GPIOC, GPIO_Pin_1);
     vTaskDelay(500);
   }

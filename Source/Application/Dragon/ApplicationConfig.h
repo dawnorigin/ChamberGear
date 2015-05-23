@@ -6,6 +6,11 @@
 #define KEEP_LASER_ON_MS        (2000)
 #define LED_BUTTON_ON_DELAY_MS  (3000)
 
+#define BLOOD_TRUE_EYE          (5)
+#define BLOOD_FALSE_EYE         (3)
+
+
+#define SWITCH_NUMBER         (6)
 
 typedef struct {
   unsigned int event;

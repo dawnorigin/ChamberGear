@@ -340,6 +340,7 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
         LAMP_OFF(LAMP_PIN_ALL);
         LED_OFF(LED_PIN_ALL);
         CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
+        srand(xTaskGetTickCount());
         status = IDLE_BLUE;
         break;
       }
@@ -395,7 +396,7 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
         
         while (0 != i) {
           ENABLE_TREAD_IT(TREAD_PIN_ALL);
-          index = (rand() / (RAND_MAX / 4));
+          index = (rand() % 4);
           CAST_LAMP_ON(cast_lamp[index]);
           if (pdTRUE == xQueueReceive(xTreadQueue, &event, DJ_TREAD_DELAY_MS)) {
             /* Skip the key jitter step */
