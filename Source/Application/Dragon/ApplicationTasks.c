@@ -16,10 +16,11 @@
 enum {
   INIT,
   IDLE,
+  INIT_SHOOTING,
   SHOOTING,
-  LASER,
+  INIT_LASER,
   ESCAPE_LASER,
-  ENABLE_BUTTON,
+  INIT_BUTTON,
   BUTTON,
   INIT_PAINTING,
   PAINTING,
@@ -33,7 +34,10 @@ enum {
 };
 /* Private macro -------------------------------------------------------------*/
 #define DRAGON_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
-#define DRAGON_PRIORITY			  (tskIDLE_PRIORITY + 1 )
+#define DRAGON_PRIORITY			  (tskIDLE_PRIORITY + 1)
+
+#define BUTTON_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
+#define BUTTON_PRIORITY			  (tskIDLE_PRIORITY + 2)
 
 #define PAINTING_STACK_SIZE   (configMINIMAL_STACK_SIZE * 3)
 #define PAINTING_PRIORITY     (tskIDLE_PRIORITY + 1)
@@ -188,11 +192,14 @@ enum {
 SemaphoreHandle_t xResetSemaphore = NULL;
 /* Used for pyroelectric detector */
 SemaphoreHandle_t xEntranceSemaphore = NULL;
+/* Used for laser ray detector */
+SemaphoreHandle_t xLaserRaySemaphore = NULL;
 /* The queue used to hold shooting event */
 QueueHandle_t xShootingQueue;
 /* The queue used to hold buttons event */
 QueueHandle_t xButtonQueue;
-/* The queue used to hold received characters. */
+SemaphoreHandle_t xButtonSemaphore[4];
+/* The queue used to hold hall event. */
 QueueHandle_t xSwitchQueue;
 /* Used for active painting task */
 SemaphoreHandle_t xPaintingSemaphore = NULL;
@@ -200,8 +207,8 @@ SemaphoreHandle_t xPaintingSemaphore = NULL;
 uint16_t led_button[4] = {LED_BUTTON1_PIN, LED_BUTTON2_PIN, 
                           LED_BUTTON3_PIN, LED_BUTTON4_PIN};
 uint16_t button[4] = {BUTTON1_PIN, BUTTON2_PIN, BUTTON3_PIN, BUTTON4_PIN};
-static uint8_t blood[4] = {BLOOD_TRUE_EYE, BLOOD_TRUE_EYE, 
-                           BLOOD_FALSE_EYE, BLOOD_FALSE_EYE};
+static int8_t blood[4] = {BLOOD_TRUE_EYE, BLOOD_TRUE_EYE, 
+                          BLOOD_FALSE_EYE, BLOOD_FALSE_EYE};
 
 
 /* Private function prototypes -----------------------------------------------*/
@@ -237,21 +244,67 @@ int random_button(void) {
   return 3;
 }
 
-void led_button_ctl(void) {
-}
-
 void led_button_reset(void) {
   blood[0] = blood[1] = BLOOD_TRUE_EYE; 
   blood[2] = blood[3] = BLOOD_FALSE_EYE;
 }
 
+void button_led_ctl(int index, int event) {
+  uint16_t pins;
+  
+  if (index == event) {
+    /* Play audio */
+    player_play_file(BUTTON_CORRECT_AUDIO, 0);
+    if (0 != blood[index])
+      blood[index]--;
+  } else if (BLOCK_LASER_EVENT == event) {
+    /* Play audio */
+    player_play_file(BLOCK_LASER_AUDIO, 0);
+    /* Reset eyes' blood */
+    led_button_reset();
+  } else if (event < 2){
+    /* Play audio */
+    player_play_file(BUTTON_WRONG_AUDIO, 0);
+    if (BLOOD_TRUE_EYE != blood[event])
+      blood[event]++;
+  } else {
+    /* Play audio */
+    player_play_file(BUTTON_WRONG_AUDIO, 0);
+    if (BLOOD_FALSE_EYE != blood[event])
+      blood[event]++;
+  }
+  pins = 0;
+  switch (blood[0]) {
+    case 5: pins |= LED_T1_5_PIN;
+    case 4: pins |= LED_T1_4_PIN;
+    case 3: pins |= LED_T1_3_PIN;
+    case 2: pins |= LED_T1_2_PIN;
+    case 1: pins |= LED_T1_1_PIN;
+  }
+  switch (blood[1]) {
+    case 5: pins |= LED_T2_5_PIN;
+    case 4: pins |= LED_T2_4_PIN;
+    case 3: pins |= LED_T2_3_PIN;
+    case 2: pins |= LED_T2_2_PIN;
+    case 1: pins |= LED_T2_1_PIN;
+  }
+  switch (blood[2]) {
+    case 3: pins |= LED_F1_3_PIN;
+    case 2: pins |= LED_F1_2_PIN;
+    case 1: pins |= LED_F1_1_PIN;
+  }
+  switch (blood[3]) {
+    case 3: pins |= LED_F2_3_PIN;
+    case 2: pins |= LED_F2_2_PIN;
+    case 1: pins |= LED_F2_1_PIN;
+  }
+  GPIO_Write(LED_T_F_PORT, pins);
+}
+
 static portTASK_FUNCTION( vDragonTask, pvParameters ) {
   int status = INIT;
   IT_event event;
-  TickType_t tick_delay;
   uint16_t laser_rx_flag;
-  TickType_t tick_escape_laser;
-  TickType_t tick_previous_event;
     
 	/* The parameters are not used. */
 	( void ) pvParameters;
@@ -259,8 +312,6 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
   for(;;) {
     switch (status) {
       case INIT: {
-        /* TIM enable counter */
-        TIM_Cmd(TIM1, ENABLE);
         /* Turn off the LED on the buton */
         LED_BUTTON_OFF(LED_BUTTON_PIN_ALL);
         /* Turn off the blood LEDs */
@@ -271,13 +322,6 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
         LAMP_CAST_OFF();
         /* Close the chest box */
         BOX_CHEST_OFF();
-        /* Clean buttons interrupt */
-        DISABLE_BUTTON_IT(BUTTON_PIN_ALL);
-        while (pdTRUE == xQueueReceive(xButtonQueue, &event, 0));
-        /* Clean shooting laser reciever interrupt */
-        laser_rx_flag = 0;
-        DISABLE_LASER_RX_IT(LASER_RX_PIN_ALL);
-        while (pdTRUE == xQueueReceive(xShootingQueue, &event, 0));
         /* Clean pyroelectric detector interrupt */
         DISABLE_PYRO_IT();
         while (pdTRUE == xSemaphoreTake(xEntranceSemaphore, 0));
@@ -292,12 +336,25 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
           if (Bit_RESET != PYRO_STATUS()) {
             /* Play audio */
             player_play_file(ENTRANCE_AUDIO, 0);
-            ENABLE_LASER_RX_IT(LASER_RX_PIN_ALL);
-            status = SHOOTING;
+            status = INIT_SHOOTING;
           } else {
             ENABLE_PYRO_IT();
           }
         }
+        break;
+      }
+      case INIT_SHOOTING: {
+        /* Turn off the 6 laser transmitter */
+        LASER_TX_OFF(LASER_TX_PIN_ALL);
+        /* Clean shooting laser reciever interrupt */
+        laser_rx_flag = 0;
+        DISABLE_LASER_RX_IT(LASER_RX_PIN_ALL);
+        while (pdTRUE == xQueueReceive(xShootingQueue, &event, 0));
+        ENABLE_LASER_RX_IT(LASER_RX_PIN_ALL);
+        /* Clean buttons interrupt */
+        DISABLE_BUTTON_IT(BUTTON_PIN_ALL);
+        while (pdTRUE == xQueueReceive(xButtonQueue, &event, 0));
+        status = SHOOTING;
         break;
       }
       case SHOOTING: {
@@ -310,7 +367,7 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
             player_play_file(SHOOTING_AUDIO, 0);
             laser_rx_flag |= event.event;
             if (LASER_RX_PIN_ALL == (laser_rx_flag & LASER_RX_PIN_ALL)) {
-              status = LASER;
+              status = INIT_LASER;
             }
           } else {
             ENABLE_LASER_RX_IT(LASER_RX_PIN_ALL);
@@ -318,46 +375,44 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
         }
         break;
       }
-      case LASER: {
+      case INIT_LASER: {
         /* Play audio */
         player_play_file(LASER_AUDIO, 0);
-        /* Wait for audio ending */
+        /* Wait for audio starting */
         while(Bit_RESET != PLAYER_BUSY_STATUS());
+        /* Clean laser ray detector semaphore */
+        while (pdTRUE == xSemaphoreTake(xLaserRaySemaphore, 0));
+        /* Wait for audio end */
         for (;;) {
           if (Bit_RESET != PLAYER_BUSY_STATUS())
             break;
           vTaskDelay((TickType_t)10);
         }
+        /* Clear TIM1 interrupt pending bit */
+        TIM_ClearITPendingBit(TIM1, (TIM_IT_CC1 | TIM_IT_CC2 | TIM_IT_CC3));
+        /* Enable the TIM1 Interrupt Request */
+        TIM_ITConfig(TIM1, (TIM_IT_CC1 | TIM_IT_CC2 | TIM_IT_CC3), ENABLE);
+        /* Clear TIM1 counter */
+        TIM_SetCounter(TIM1, 0);
+        /* TIM enable counter */
+        TIM_Cmd(TIM1, ENABLE);
         /* Turn on the 6 laser transmitter */
         LASER_TX_ON(LASER_TX_PIN_ALL);
-        /* Wait for the laser ray stable */
-        vTaskDelay((TickType_t)10);
-//        /* Enable the laser switch reciever interrupt */
-//        ENABLE_LASER_RX_IT(LASER_RX_SWITCH_PIN);
-//        /* Record the current time for the player escaping the laser ray */
-//        tick_previous_event = tick_escape_laser = xTaskGetTickCount();
         status = ESCAPE_LASER;
         break;
       }
       case ESCAPE_LASER: {
-        tick_delay = tick_escape_laser + ESCAPE_LASER_MS - xTaskGetTickCount();
-        if (pdTRUE == xQueueReceive(xShootingQueue, &event, tick_delay)) {
-//          if (LASER_RX_SWITCH_PIN == event.event & LASER_RX_SWITCH_PIN;) {
-//            if (Bit_RESET == LASER_RX_STATUS(LASER_RX_SWITCH_PIN)) {
-//              /* The laser ray has been blocked */
-//              
-//            } else {
-//              /* The laser ray has been released */
-//            }
-//          } else {
-//            /* Enable the laser switch reciever interrupt */
-//            ENABLE_LASER_RX_IT(LASER_RX_SWITCH_PIN);
-//          }
+        if (pdTRUE == xSemaphoreTake(xLaserRaySemaphore, ESCAPE_LASER_MS)) {
+          /* The laser ray has been released */
+          status = INIT_BUTTON;
         } else {
+          /* The laser ray has been blocked */
+          status = INIT_SHOOTING;
         }
+        TIM_ITConfig(TIM1, (TIM_IT_CC1 | TIM_IT_CC3), DISABLE);
         break;
       }
-      case ENABLE_BUTTON: {
+      case INIT_BUTTON: {
         /* Play audio */
         player_play_file(BUTTON_AUDIO, 0);
         /* LEDs show */
@@ -367,13 +422,14 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
         LED_BUTTON_OFF(LED_BUTTON_PIN_ALL);
         /* Reset eyes' blood */
         led_button_reset();
+        while (xQueueReceive(xButtonQueue, &event, 0));
         /* Init random seed */
         srand(xTaskGetTickCount());
         status = BUTTON;
         break;
       }
       case BUTTON: {
-        int index, j;
+        int index;
         /* A random button */
         index = random_button();
         /* Enable button interrupt */
@@ -383,28 +439,19 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
           /* At least one eye has blood */
           LED_BUTTON_ON(led_button[index]);
           if (xQueueReceive(xButtonQueue, &event, LED_BUTTON_ON_DELAY_MS)) {
-            /* Skip the key jitter step */
-            vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
-            event.event &= BUTTON_PIN_ALL;
-            if (Bit_RESET == BUTTON_STATUS(event.event)) {
-              if (button[index] == (event.event & button[index])) {
-                if (0 != blood[index])
-                  blood[index]--;
-              } else {
-                for (j = 0; j < 4; j++) {
-                  if ((j != index) && 
-                   (button[j] == (event.event & button[j])) && 
-                   (((j < 2) ? BLOOD_TRUE_EYE : BLOOD_FALSE_EYE) != blood[j])) {
-                    blood[j]++;
-                  }
-                }
-              }
-              led_button_ctl();
+            button_led_ctl(index, event.event);
+            while (xQueueReceive(xButtonQueue, &event, 0)) {
+              button_led_ctl(index, event.event);
             }
           }
           LED_BUTTON_OFF(led_button[index]);
+          while (xQueueReceive(xButtonQueue, &event, LED_BUTTON_OFF_DELAY_MS)) {
+            button_led_ctl(-1, event.event);
+          }
         } else {
           /* All eyes has no blood */
+          TIM_Cmd(TIM1, DISABLE);
+          TIM_ITConfig(TIM1, (TIM_IT_CC1 | TIM_IT_CC2 | TIM_IT_CC3), DISABLE);
           LED_BUTTON_OFF(BUTTON_PIN_ALL);
           LASER_TX_OFF(LASER_TX_PIN_ALL);
           status = INIT_PAINTING;
@@ -539,13 +586,31 @@ static portTASK_FUNCTION( vPaintingTask, pvParameters ) {
   }
 }
 
+static portTASK_FUNCTION(vButtonTask, pvParameters) {
+  int index = *((int*)pvParameters);
+  IT_event event;
+  
+  event.event = index;
+  for(;;) {
+    if (pdTRUE == xSemaphoreTake(xButtonSemaphore[index], portMAX_DELAY)) {
+      /* Skip the key jitter step */
+      vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
+      if (Bit_RESET == BUTTON_STATUS(button[index])) {
+        xQueueSend(xButtonQueue, &event, 0);
+      }
+      ENABLE_BUTTON_IT(button[index]);
+    }
+  }//for(;;)
+}
+
 static void hardware_init(void) {
   GPIO_InitTypeDef GPIO_InitStructure;
   NVIC_InitTypeDef NVIC_InitStructure;
   EXTI_InitTypeDef EXTI_InitStructure;
   USART_InitTypeDef USART_InitStructure;
-  TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+  TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
   TIM_ICInitTypeDef TIM_ICInitStructure;
+  TIM_OCInitTypeDef TIM_OCInitStructure;
   
   /* Configure input GPIO */
   GPIO_InitStructure.GPIO_Pin = PYRO_PIN;
@@ -762,37 +827,36 @@ static void hardware_init(void) {
   GPIO_PinRemapConfig(GPIO_FullRemap_TIM1, ENABLE);  
   
   /* Time base configuration */
-  TIM_TimeBaseStructure.TIM_Period = (ESCAPE_LASER_MS * 2);
+  TIM_TimeBaseStructure.TIM_Period = 65535;
   TIM_TimeBaseStructure.TIM_Prescaler = (36000 - 1);
   TIM_TimeBaseStructure.TIM_ClockDivision = 0;
   TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
   TIM_TimeBaseInit(TIM1, &TIM_TimeBaseStructure);
-  
-  /* TIM1 configuration: PWM Input mode ------------------------
-     The external signal is connected to TIM1 CH1 pin (PE.09), 
-     The Rising edge is used as active edge,
-     The TIM1 CCR2 is used to compute the frequency value 
-     The TIM1 CCR1 is used to compute the duty cycle value
-  ------------------------------------------------------------ */
-  TIM_ICInitStructure.TIM_Channel = TIM_Channel_1;
-  TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;
-  TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
-  TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
-  TIM_ICInitStructure.TIM_ICFilter = 0x0;
-  
-  TIM_PWMIConfig(TIM1, &TIM_ICInitStructure);
   /* Select the TIM1 Input Trigger: TI1FP1 */
   TIM_SelectInputTrigger(TIM1, TIM_TS_TI1FP1);
   /* Select the slave Mode: Reset Mode */
   TIM_SelectSlaveMode(TIM1, TIM_SlaveMode_Reset);
   /* Enable the Master/Slave Mode */
   TIM_SelectMasterSlaveMode(TIM1, TIM_MasterSlaveMode_Enable);
-  TIM_ClearITPendingBit(TIM1, (TIM_IT_Update | TIM_IT_CC1 | TIM_IT_CC2));
-  /* Enable the TIM1 Interrupt Request */
-  //TIM_ITConfig(TIM1, (TIM_IT_Update | TIM_IT_CC1 | TIM_IT_CC2), ENABLE);
+  
+  TIM_ICInitStructure.TIM_Channel = TIM_Channel_1;
+  TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;
+  TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
+  TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
+  TIM_ICInitStructure.TIM_ICFilter = 0x0;
+  TIM_PWMIConfig(TIM1, &TIM_ICInitStructure);
+
+  /* Output Compare Active Mode configuration: Channel3 */
+  TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_Active;
+  TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Disable;
+  TIM_OCInitStructure.TIM_Pulse = (KEEP_LASER_ON_MS * 2);
+  TIM_OC3Init(TIM1, &TIM_OCInitStructure);
 }
 
 void init_tasks(void) {
+  int i;
+  char task_name[configMAX_TASK_NAME_LEN] = {'B','u','t','t','o','n','1',0};
+  
   /* Initialize hardware */
   hardware_init();
 
@@ -805,6 +869,9 @@ void init_tasks(void) {
   /* Create switch queue */
   xShootingQueue = xQueueCreate(10, (unsigned portBASE_TYPE)sizeof(IT_event));
   
+  /* Create laser ray detector semaphore */
+  xLaserRaySemaphore = xSemaphoreCreateBinary();
+  
   /* Create button queue */
   xButtonQueue = xQueueCreate(10, (unsigned portBASE_TYPE)sizeof(IT_event));
   
@@ -816,7 +883,18 @@ void init_tasks(void) {
               DRAGON_PRIORITY, 
               ( TaskHandle_t * ) NULL );
   
-  /* Create switch queue */
+  for (i = 0; i < 4; i++) {
+    xButtonSemaphore[i] = xSemaphoreCreateBinary();
+    task_name[6] = i + '1';
+    xTaskCreate(vButtonTask,
+                task_name,
+                BUTTON_STACK_SIZE, 
+                &i,
+                BUTTON_PRIORITY,
+                (TaskHandle_t*) NULL );
+  }
+  
+  /* Create hall queue */
   xSwitchQueue = xQueueCreate( SWITCH_NUMBER, 
                           ( unsigned portBASE_TYPE ) sizeof( signed char ) );
   

@@ -8,12 +8,15 @@
 #define NO_FEEDBACK (0x00)
 #define END_BYTE    (0xEF)
 
-#define ENTRANCE_AUDIO      (1)
-#define SHOOTING_AUDIO      (2)
-#define LASER_AUDIO         (3)
-#define BUTTON_AUDIO        (4)
-#define SWORD_AUDIO         (8)
-#define OPEN_DOOR_AUDIO     (9)
+#define ENTRANCE_AUDIO        (1)
+#define SHOOTING_AUDIO        (2)
+#define LASER_AUDIO           (3)
+#define BUTTON_AUDIO          (4)
+#define BUTTON_CORRECT_AUDIO  (5)
+#define BUTTON_WRONG_AUDIO    (6)
+#define BLOCK_LASER_AUDIO     (7)
+#define SWORD_AUDIO           (8)
+#define OPEN_DOOR_AUDIO       (9)
 
 int player_play_file(short index, TickType_t xTicksToWait);
 

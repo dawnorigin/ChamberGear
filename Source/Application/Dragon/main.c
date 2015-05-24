@@ -33,8 +33,10 @@ int main(void)
 }
 
 static portTASK_FUNCTION( vLEDFlashTask, pvParameters ) {
-  for(;;)
-  {
+	/* The parameters are not used. */
+	( void ) pvParameters;
+  
+  for(;;) {
     GPIO_SetBits(GPIOC, GPIO_Pin_1);
     vTaskDelay(300);
     GPIO_ResetBits(GPIOC, GPIO_Pin_1);
