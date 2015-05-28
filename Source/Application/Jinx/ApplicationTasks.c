@@ -164,7 +164,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
           vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
           if (Bit_RESET != PYRO1_STATUS()) {
             /* Play music */
-            player_play_file(FILE_1, 0);
+            player_play_file(ENTRANCE_AUDIO, 0);
             SMOKE_ON();
             vTaskDelay((TickType_t)SMOKE_MS);
             SMOKE_OFF();
@@ -204,10 +204,13 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               status = ERR_ORDER;
               break;
             } else {
-              if (STEP0 == status)
+              if (STEP0 == status) {
+                player_play_file(CORRECT_AUDIO, 0);
                 status = STEP1;
-              else
+              } else {
+                player_play_file(TREAD_COMPLETE_AUDIO, 0);
                 status = LASER;
+              }
             }
           }
           ENABLE_TREAD_IT(TREAD_PIN_ALL);
@@ -231,6 +234,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               status = ERR_ORDER;
               break;
             } else {
+              player_play_file(CORRECT_AUDIO, 0);
               if (STEP1 == status)
                 status = STEP2;
               else
@@ -258,6 +262,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               status = ERR_ORDER;
               break;
             } else {
+              player_play_file(CORRECT_AUDIO, 0);
               if (STEP2 == status)
                 status = STEP3;
               else 
@@ -287,6 +292,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               break;
             } else if ((TREAD7_PIN | TREAD8_PIN) == (tread_event.event 
                                                   & (TREAD7_PIN | TREAD8_PIN))){
+              player_play_file(CORRECT_AUDIO, 0);
               if (STEP3 == status) {
                 status = STEP4;
               } else {
@@ -330,6 +336,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               break;
             } else {
               if ((tread_event.time_stamp - tick_tmp) <= TWO_FEET_INTERVAL_MS) {
+                player_play_file(CORRECT_AUDIO, 0);
                 if (STEP3_1 == status) {
                   status = STEP4;
                 } else {
@@ -363,6 +370,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               break;
             } else {
               if ((tread_event.time_stamp - tick_tmp) < TWO_FEET_INTERVAL_MS) {
+                player_play_file(CORRECT_AUDIO, 0);
                 if (STEP3_2 == status) {
                   status = STEP4;
                 } else {
@@ -389,14 +397,18 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
         while (pdTRUE == xSemaphoreTake(xLaserSemaphore, 0));
         /* Check the reciever status */
         if (LASER_REV_STATUS()) {
+          player_play_file(LASER_CORRECT_AUDIO, 0);
           /* Reciever has caught the laser ray */
           status = FINISH;
           vTaskDelay((TickType_t)KEEP_LASER_ON_MS);
+          /* Open the crab box */
+          BOX_CRAB_ON();
         } else {
           /* Enable laser reciever interrupt */
           ENABLE_LASER_REV_IT();
           /* Reciever has not caught the laser ray */
           if (pdTRUE == xSemaphoreTake(xLaserSemaphore, ESCAPE_LASER_MS)) {
+            player_play_file(LASER_CORRECT_AUDIO, 0);
             status = FINISH;
             vTaskDelay((TickType_t)KEEP_LASER_ON_MS);
             /* Open the crab box */
@@ -411,13 +423,13 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
       }
       case ERR_LASER: {
         /* Play music */
-        player_play_file(FILE_4, 0);
+        player_play_file(LASER_ERR_AUDIO, 0);
         status = IDLE;
         break;
       }
       case ERR_MINE: {
         /* Play music */
-        player_play_file(FILE_2, 0);
+        player_play_file(MINE_AUDIO, 0);
         /* Flash the red lamp */
         LAMP_ON(LAMP_PIN_ALL);
         vTaskDelay((TickType_t)LAMP_ERR_FLASH_MS);
@@ -427,7 +439,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
       }
       case ERR_ORDER: {
         /* Play music */
-        player_play_file(FILE_3, 0);
+        player_play_file(ORDER_ERR_AUDIO, 0);
         /* Flash the red lamp */
         LAMP_ON(LAMP_PIN_ALL);
         vTaskDelay((TickType_t)LAMP_ERR_FLASH_MS);
@@ -526,7 +538,7 @@ static void hardware_init(void) {
   GPIO_Init(CRAB_PORT, &GPIO_InitStructure);
 
   GPIO_InitStructure.GPIO_Pin = LASER_REV_PIN;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(LASER_REV_PORT, &GPIO_InitStructure);
 

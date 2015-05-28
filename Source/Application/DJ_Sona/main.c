@@ -19,7 +19,7 @@ int main(void)
   BSP_init();
 
   /* Init LED flash task */
-  init_LED_task();
+  //init_LED_task();
 
   /* Initialize application tasks */
   init_tasks();
@@ -59,7 +59,13 @@ void BSP_init(void) {
                          RCC_APB2Periph_GPIOA | 
                          RCC_APB2Periph_GPIOB |
                          RCC_APB2Periph_GPIOC, ENABLE);  
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_PWR | 
+                         RCC_APB1Periph_BKP, ENABLE);
   
+//  PWR_BackupAccessCmd(ENABLE);
+//  RCC_LSEConfig(RCC_LSE_OFF);
+//  BKP_TamperPinCmd(DISABLE);
+//  BKP_ITConfig(DISABLE);
   /* SWJ remap: disable JTAG, enable SWO */
   GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
   
@@ -68,11 +74,11 @@ void BSP_init(void) {
   NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);
 #endif
   
-  /* Configure LED(PA7) GPIO */
-  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
-  GPIO_Init(GPIOA, &GPIO_InitStructure);
+//  /* Configure LED(PA7) GPIO */
+//  GPIO_InitStructure.GPIO_Pin = GPIO_Pin_7;
+//  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+//  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+//  GPIO_Init(GPIOA, &GPIO_InitStructure);
 }
 
 

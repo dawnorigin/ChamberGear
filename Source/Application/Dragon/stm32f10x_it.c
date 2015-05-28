@@ -564,7 +564,7 @@ void TIM1_CC_IRQHandler(void)
   extern QueueHandle_t xButtonQueue;
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
   IT_event event = {.event = BLOCK_LASER_EVENT};
-  static int falling_flag;
+  static int falling_flag = SET;
   
   if (RESET != TIM_GetITStatus(TIM1, TIM_IT_CC1)) {
     /* Clear TIM1 Capture compare interrupt pending bit */

@@ -86,11 +86,12 @@ enum {
 #define ENABLE_HALL_IT(x)     {EXTI->IMR |= (x);}
 #define DISABLE_HALL_IT(x)    {EXTI->IMR &= (~(x));}
 
-#define SWITCH_STATUS(x)      GPIO_ReadInputDataBit(HALL_PORT, (1 << (x)))
+#define SWITCH_STATUS(x)      GPIO_ReadInputDataBit(HALL_PORT, \
+                              ((HALL1_PIN >> 1) << (x)))
 #define ENABLE_SWITCH_IT(x)   {EXTI->IMR |= ((HALL1_PIN >> 1) << (x));}
 
 #define PLAYER_BUSY_PORT      (GPIOA)
-#define PLAYER_BUSY_PIN       (GPIO_Pin_8)
+#define PLAYER_BUSY_PIN       (GPIO_Pin_12)
 #define PLAYER_BUSY_STATUS()  (GPIO_ReadInputDataBit(PLAYER_BUSY_PORT, \
                                                      PLAYER_BUSY_PIN))
 
@@ -165,29 +166,34 @@ enum {
 #define LED_T_F_ON(x)         {GPIO_ResetBits(LED_T_F_PORT, (x));}
 
 #define LAMP_CAST_PORT        (GPIOE)
-#define LAMP_CAST_PIN         (GPIO_Pin_0)
+#define LAMP_CAST_PIN         (GPIO_Pin_6)
 #define LAMP_CAST_OFF()       {GPIO_SetBits(LAMP_CAST_PORT, LAMP_CAST_PIN);}
 #define LAMP_CAST_ON()        {GPIO_ResetBits(LAMP_CAST_PORT, LAMP_CAST_PIN);}
 
 #define BOX_CHEST_PORT        (GPIOE)
-#define BOX_CHEST_PIN         (GPIO_Pin_2)
+#define BOX_CHEST_PIN         (GPIO_Pin_4)
 #define BOX_CHEST_OFF()       {GPIO_SetBits(BOX_CHEST_PORT, BOX_CHEST_PIN);}
 #define BOX_CHEST_ON()        {GPIO_ResetBits(BOX_CHEST_PORT, BOX_CHEST_PIN);}
 
 #define BOX_SWORD_PORT        (GPIOE)
-#define BOX_SWORD_PIN         (GPIO_Pin_4)
+#define BOX_SWORD_PIN         (GPIO_Pin_2)
 #define BOX_SWORD_OFF()       {GPIO_SetBits(BOX_SWORD_PORT, BOX_SWORD_PIN);}
 #define BOX_SWORD_ON()        {GPIO_ResetBits(BOX_SWORD_PORT, BOX_SWORD_PIN);}
 
 #define DOOR_PORT             (GPIOE)
-#define DOOR_PIN              (GPIO_Pin_6)
+#define DOOR_PIN              (GPIO_Pin_0)
 #define DOOR_OFF()            {GPIO_SetBits(DOOR_PORT, DOOR_PIN);}
 #define DOOR_ON()             {GPIO_ResetBits(DOOR_PORT, DOOR_PIN);}
 
 #define LAMP_PORT             (GPIOC)
-#define LAMP_PIN              (GPIO_Pin_14)
-#define LAMP_OFF()           {GPIO_SetBits(LAMP_PORT, LAMP_PIN);}
-#define LAMP_ON()            {GPIO_ResetBits(LAMP_PORT, LAMP_PIN);}
+#define LAMP_PIN              (GPIO_Pin_0)
+#define LAMP_OFF()            {GPIO_SetBits(LAMP_PORT, LAMP_PIN);}
+#define LAMP_ON()             {GPIO_ResetBits(LAMP_PORT, LAMP_PIN);}
+
+#define RESERVED_PORT         (GPIOC)
+#define RESERVED_PIN          (GPIO_Pin_2)
+#define RESERVED_OFF()        {GPIO_SetBits(RESERVED_PORT, RESERVED_PIN);}
+#define RESERVED_ON()         {GPIO_ResetBits(RESERVED_PORT, RESERVED_PIN);}
 /* Private variables ---------------------------------------------------------*/
 SemaphoreHandle_t xResetSemaphore = NULL;
 /* Used for pyroelectric detector */
@@ -204,6 +210,8 @@ QueueHandle_t xSwitchQueue;
 /* Used for active painting task */
 SemaphoreHandle_t xPaintingSemaphore = NULL;
 
+uint8_t tasks[4] = {0, 1, 2, 3};
+
 uint16_t led_button[4] = {LED_BUTTON1_PIN, LED_BUTTON2_PIN, 
                           LED_BUTTON3_PIN, LED_BUTTON4_PIN};
 uint16_t button[4] = {BUTTON1_PIN, BUTTON2_PIN, BUTTON3_PIN, BUTTON4_PIN};
@@ -216,31 +224,28 @@ static int8_t blood[4] = {BLOOD_TRUE_EYE, BLOOD_TRUE_EYE,
 
 int random_button(void) {
   int result;
+  int blood_sum = blood[0] + blood[1] + blood[2] + blood[3];
   
-  result = rand() % (blood[0] + blood[1] + blood[2] + blood[3]);
-  
-  if (0 == result)
+  if (0 == blood_sum)
     return -1;
+  
+  result = rand() % blood_sum;
   
   if (blood[0]) {
     if (result < blood[0]) {
-      blood[0]--;
       return 0;
     }
   }
   if (blood[1]) {
     if (result < (blood[0] + blood[1])) {
-      blood[1]--;
       return 1;
     }
   }
   if (blood[2]) {
     if (result < (blood[0] + blood[1] + blood[2])) {
-      blood[2]--;
       return 2;
     }
   }
-  blood[3]--;
   return 3;
 }
 
@@ -273,34 +278,34 @@ void button_led_ctl(int index, int event) {
     if (BLOOD_FALSE_EYE != blood[event])
       blood[event]++;
   }
-  pins = 0;
+  pins = GPIO_Pin_All;
   switch (blood[0]) {
-    case 5: pins |= LED_T1_5_PIN;
-    case 4: pins |= LED_T1_4_PIN;
-    case 3: pins |= LED_T1_3_PIN;
-    case 2: pins |= LED_T1_2_PIN;
-    case 1: pins |= LED_T1_1_PIN;
+    case 5: pins &= ~LED_T1_5_PIN;
+    case 4: pins &= ~LED_T1_4_PIN;
+    case 3: pins &= ~LED_T1_3_PIN;
+    case 2: pins &= ~LED_T1_2_PIN;
+    case 1: pins &= ~LED_T1_1_PIN;
   }
   switch (blood[1]) {
-    case 5: pins |= LED_T2_5_PIN;
-    case 4: pins |= LED_T2_4_PIN;
-    case 3: pins |= LED_T2_3_PIN;
-    case 2: pins |= LED_T2_2_PIN;
-    case 1: pins |= LED_T2_1_PIN;
+    case 5: pins &= ~LED_T2_5_PIN;
+    case 4: pins &= ~LED_T2_4_PIN;
+    case 3: pins &= ~LED_T2_3_PIN;
+    case 2: pins &= ~LED_T2_2_PIN;
+    case 1: pins &= ~LED_T2_1_PIN;
   }
   switch (blood[2]) {
-    case 3: pins |= LED_F1_3_PIN;
-    case 2: pins |= LED_F1_2_PIN;
-    case 1: pins |= LED_F1_1_PIN;
+    case 3: pins &= ~LED_F1_3_PIN;
+    case 2: pins &= ~LED_F1_2_PIN;
+    case 1: pins &= ~LED_F1_1_PIN;
   }
   switch (blood[3]) {
-    case 3: pins |= LED_F2_3_PIN;
-    case 2: pins |= LED_F2_2_PIN;
-    case 1: pins |= LED_F2_1_PIN;
+    case 3: pins &= ~LED_F2_3_PIN;
+    case 2: pins &= ~LED_F2_2_PIN;
+    case 1: pins &= ~LED_F2_1_PIN;
   }
   GPIO_Write(LED_T_F_PORT, pins);
 }
-
+  
 static portTASK_FUNCTION( vDragonTask, pvParameters ) {
   int status = INIT;
   IT_event event;
@@ -376,6 +381,7 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
         break;
       }
       case INIT_LASER: {
+        vTaskDelay((TickType_t)3000);
         /* Play audio */
         player_play_file(LASER_AUDIO, 0);
         /* Wait for audio starting */
@@ -406,6 +412,7 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
           /* The laser ray has been released */
           status = INIT_BUTTON;
         } else {
+          player_play_file(RESHOOTING_AUDIO, 0);
           /* The laser ray has been blocked */
           status = INIT_SHOOTING;
         }
@@ -455,6 +462,7 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
           LED_BUTTON_OFF(BUTTON_PIN_ALL);
           LASER_TX_OFF(LASER_TX_PIN_ALL);
           status = INIT_PAINTING;
+          vTaskDelay((TickType_t)3000);
         }
         break;
       }
@@ -505,7 +513,7 @@ static portTASK_FUNCTION( vPaintingTask, pvParameters ) {
         /* Clean hall interrupt queue */
         DISABLE_HALL_IT(HALL_PIN_ALL);
         while (xQueueReceive(xSwitchQueue, &switch_no, 0));
-        ENABLE_HALL_IT(HALL1_PIN);
+        ENABLE_HALL_IT(HALL_PIN_ALL);
         status = IDLE;
         break;
       }
@@ -523,16 +531,16 @@ static portTASK_FUNCTION( vPaintingTask, pvParameters ) {
                 /* The last switch is passing */
                 status = ACTION;
               } else {
-                ENABLE_SWITCH_IT(switch_no);
+                ENABLE_HALL_IT(HALL_PIN_ALL);
               }
             } else {
               /* The passing switch is inactive */
               status = INIT;
-              ENABLE_SWITCH_IT(switch_no);
+              ENABLE_HALL_IT(HALL_PIN_ALL);
             }
           } else {
-            /* Enable play button interrupt */
-            ENABLE_SWITCH_IT(switch_no);
+            /* Enable interrupt */
+            ENABLE_HALL_IT(HALL_PIN_ALL);
           }
         }
         break;
@@ -587,7 +595,7 @@ static portTASK_FUNCTION( vPaintingTask, pvParameters ) {
 }
 
 static portTASK_FUNCTION(vButtonTask, pvParameters) {
-  int index = *((int*)pvParameters);
+  int index = *((char*)pvParameters);
   IT_event event;
   
   event.event = index;
@@ -854,7 +862,7 @@ static void hardware_init(void) {
 }
 
 void init_tasks(void) {
-  int i;
+  char i;
   char task_name[configMAX_TASK_NAME_LEN] = {'B','u','t','t','o','n','1',0};
   
   /* Initialize hardware */
@@ -889,7 +897,7 @@ void init_tasks(void) {
     xTaskCreate(vButtonTask,
                 task_name,
                 BUTTON_STACK_SIZE, 
-                &i,
+                (tasks + i),
                 BUTTON_PRIORITY,
                 (TaskHandle_t*) NULL );
   }

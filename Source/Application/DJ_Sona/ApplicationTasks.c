@@ -30,6 +30,9 @@ enum {
   FINISH
 };
 /* Private macro -------------------------------------------------------------*/
+#define TREAD_STACK_SIZE        (configMINIMAL_STACK_SIZE)
+#define TREAD_PRIORITY			    (tskIDLE_PRIORITY + 2)
+
 #define ENTRANCE_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
 #define ENTRANCE_PRIORITY			  (tskIDLE_PRIORITY + 1)
 
@@ -66,8 +69,8 @@ enum {
 #define ENABLE_SET2_IT()    {EXTI->IMR |= SET2_PIN;}
 #define DISABLE_SET2_IT()   {EXTI->IMR &= (~SET2_PIN);}
 
-#define PLAYER_BUSY_PORT      (GPIOA)
-#define PLAYER_BUSY_PIN       (GPIO_Pin_4)
+#define PLAYER_BUSY_PORT      (GPIOC)
+#define PLAYER_BUSY_PIN       (GPIO_Pin_14)
 #define PLAYER_BUSY_STATUS()  (GPIO_ReadInputDataBit(PLAYER_BUSY_PORT, \
                                                      PLAYER_BUSY_PIN))
 
@@ -111,8 +114,8 @@ enum {
 #define WALL_OFF()            {GPIO_SetBits(WALL_PORT, WALL_PIN);}
 #define WALL_ON()             {GPIO_ResetBits(WALL_PORT, WALL_PIN);}
 
-#define WALL_LAMP_PORT        (GPIOB)
-#define WALL_LAMP_PIN         (GPIO_Pin_5)
+#define WALL_LAMP_PORT        (GPIOA)
+#define WALL_LAMP_PIN         (GPIO_Pin_4)
 #define WALL_LAMP_OFF()       {GPIO_SetBits(WALL_LAMP_PORT, WALL_LAMP_PIN);}
 #define WALL_LAMP_ON()        {GPIO_ResetBits(WALL_LAMP_PORT, WALL_LAMP_PIN);}
 
@@ -139,13 +142,13 @@ enum {
 #define LED_OFF(x)            {GPIO_SetBits(LED_PORT, (x));}
 #define LED_ON(x)             {GPIO_ResetBits(LED_PORT, (x));}
 
-#define DOOR_PORT             (GPIOC)
-#define DOOR_PIN              (GPIO_Pin_15)
+#define DOOR_PORT             (GPIOB)
+#define DOOR_PIN              (GPIO_Pin_5)
 #define DOOR_OFF()            {GPIO_SetBits(DOOR_PORT, DOOR_PIN);}
 #define DOOR_ON()             {GPIO_ResetBits(DOOR_PORT, DOOR_PIN);}
 
-#define LAMP_ERR_PORT         (GPIOC)
-#define LAMP_ERR_PIN          (GPIO_Pin_14)
+#define LAMP_ERR_PORT         (GPIOA)
+#define LAMP_ERR_PIN          (GPIO_Pin_7)
 #define LAMP_ERR_OFF()        {GPIO_SetBits(LAMP_ERR_PORT, LAMP_ERR_PIN);}
 #define LAMP_ERR_ON()         {GPIO_ResetBits(LAMP_ERR_PORT, LAMP_ERR_PIN);}
 /* Private variables ---------------------------------------------------------*/
@@ -157,9 +160,12 @@ SemaphoreHandle_t xSet2Semaphore = NULL;
 SemaphoreHandle_t xDJPowerOnSemaphore = NULL;
 /* The queue used to hold step trod */
 QueueHandle_t xTreadQueue;
+SemaphoreHandle_t xTreadSemaphore[4];
 /* The queue used to hold button pressed event */
 QueueHandle_t xButtonQueue;
 
+uint8_t tasks[4] = {0, 1, 2, 3};
+uint16_t treads[4] = {TREAD1_PIN, TREAD2_PIN, TREAD3_PIN, TREAD4_PIN};
 uint16_t cast_lamp[4] = {CAST_LAMP1_PIN, CAST_LAMP2_PIN, 
                          CAST_LAMP3_PIN, CAST_LAMP4_PIN};
 uint16_t button_led[4] = {LED1_PIN, LED2_PIN, LED3_PIN, LED4_PIN};
@@ -302,9 +308,9 @@ static portTASK_FUNCTION( vSetsTask, pvParameters ) {
     }
   }
 }
-
+int status = INIT;
 static portTASK_FUNCTION( vDJTask, pvParameters ) {
-  int status = INIT;
+  
   IT_event event;
   
 	/* The parameters are not used. */
@@ -340,7 +346,6 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
         LAMP_OFF(LAMP_PIN_ALL);
         LED_OFF(LED_PIN_ALL);
         CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
-        srand(xTaskGetTickCount());
         status = IDLE_BLUE;
         break;
       }
@@ -359,12 +364,21 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
             if ((BUTTON1_PIN == (event.event & BUTTON1_PIN)) 
                 && (IDLE_BLUE == status)) {
               status = DJ_BLUE;
+              LED_ON(LED1_PIN);
+              LAMP_ON(LAMP1_PIN);
+              player_play_file(DJ_BLUE_AUDIO, 0);
             } else if ((BUTTON2_PIN == (event.event & BUTTON2_PIN)) 
                        && (IDLE_GREEN == status)) {
               status = DJ_GREEN;
+              LED_ON(LED2_PIN);
+              LAMP_ON(LAMP2_PIN);
+              player_play_file(DJ_GREEN_AUDIO, 0);
             } else if ((BUTTON3_PIN == (event.event & BUTTON3_PIN)) 
                        && (IDLE_PINK == status)) {
               status = DJ_PINK;
+              LED_ON(LED3_PIN);
+              LAMP_ON(LAMP3_PIN);
+              player_play_file(DJ_PINK_AUDIO, 0);
             } else if ((BUTTON4_PIN == (event.event & BUTTON4_PIN)) 
                        && (IDLE_YELLOW == status)) {
               status = ACTION;
@@ -380,37 +394,27 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
         break;
       }
       case DJ_BLUE:
-        LED_ON(LED1_PIN);
-        LAMP_ON(LAMP1_PIN);
-        player_play_file(DJ_BLUE_AUDIO, 0);
       case DJ_GREEN:
-        LED_ON(LED2_PIN);
-        LAMP_ON(LAMP2_PIN);
-        player_play_file(DJ_GREEN_AUDIO, 0);
       case DJ_PINK: {
-        LED_ON(LED3_PIN);
-        LAMP_ON(LAMP3_PIN);
-        player_play_file(DJ_PINK_AUDIO, 0);
+        srand(xTaskGetTickCount());
+        vTaskDelay((TickType_t)3000);
+        
         int index;
         int i = DJ_TREAD_RANDOM_TIMES;
         
         while (0 != i) {
           ENABLE_TREAD_IT(TREAD_PIN_ALL);
-          index = (rand() % 4);
+          index = (rand() / (RAND_MAX / 4));
           CAST_LAMP_ON(cast_lamp[index]);
           if (pdTRUE == xQueueReceive(xTreadQueue, &event, DJ_TREAD_DELAY_MS)) {
-            /* Skip the key jitter step */
-            vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
-            event.event &= TREAD_PIN_ALL;
-            if (Bit_RESET == TREAD_STATUS(event.event)) {
-              if (cast_lamp[index] == (event.event & cast_lamp[index])) {
-                CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
-                i--;
-                continue;
-              } else {
-                status = TREAD_ERR;
-                break;
-              }
+            if (index == event.event) {
+              player_play_file(DJ_TREAD_CORRECT_AUDIO, 0);
+              CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
+              i--;
+              continue;
+            } else {
+              status = TREAD_ERR;
+              break;
             }
           } else { // Timeout
             DISABLE_TREAD_IT(TREAD_PIN_ALL);
@@ -419,6 +423,7 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
           }
         }//for(;;)
         CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
+        player_play_file(DJ_TREAD_COMPLETE_AUDIO, 0);
         switch (status) {
           case DJ_BLUE:   status = IDLE_GREEN;break;
           case DJ_GREEN:  status = IDLE_PINK;break;
@@ -428,6 +433,7 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
       }
       case BUTTON_ERR: {
         player_play_file(DJ_BUTTON_ERR_AUDIO, 0);
+        LED_OFF(LED_PIN_ALL);
         LAMP_OFF(LAMP_PIN_ALL);
         LAMP_ERR_ON();
         vTaskDelay((TickType_t)1000);
@@ -437,6 +443,7 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
       }
       case TREAD_ERR: {
         player_play_file(DJ_TREAD_ERR_AUDIO, 0);
+        LED_OFF(LED_PIN_ALL);
         LAMP_OFF(LAMP_PIN_ALL);
         LAMP_ERR_ON();
         vTaskDelay((TickType_t)1000);
@@ -465,6 +472,23 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
       }
     }
   }
+}
+
+static portTASK_FUNCTION(vTreadTask, pvParameters) {
+  int index = *((char*)pvParameters);
+  IT_event event;
+  
+  event.event = index;
+  for(;;) {
+    if (pdTRUE == xSemaphoreTake(xTreadSemaphore[index], portMAX_DELAY)) {
+      /* Skip the key jitter step */
+      vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
+      if (Bit_RESET == TREAD_STATUS(treads[index])) {
+        xQueueSend(xTreadQueue, &event, 0);
+      }
+      ENABLE_TREAD_IT(treads[index]);
+    }
+  }//for(;;)
 }
 
 static void hardware_init(void) {
@@ -543,8 +567,14 @@ static void hardware_init(void) {
   DOOR_OFF();
   GPIO_InitStructure.GPIO_Pin = DOOR_PIN;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
-  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
   GPIO_Init(DOOR_PORT, &GPIO_InitStructure);
+  
+  LAMP_ERR_OFF();
+  GPIO_InitStructure.GPIO_Pin = LAMP_ERR_PIN;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
+  GPIO_Init(LAMP_ERR_PORT, &GPIO_InitStructure);
   
 	GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource0);
   GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource1);
@@ -634,6 +664,8 @@ static void hardware_init(void) {
 }
 
 void init_tasks(void) {
+  char i;
+  char task_name[configMAX_TASK_NAME_LEN] = {'T','r','e','a','d','1',0};
   /* Initialize hardware */
   hardware_init();
 
@@ -660,6 +692,17 @@ void init_tasks(void) {
   
   /* Create button event queue */
   xButtonQueue = xQueueCreate(20, (unsigned portBASE_TYPE)sizeof(IT_event)); 
+  
+  for (i = 0; i < 4; i++) {
+    xTreadSemaphore[i] = xSemaphoreCreateBinary();
+    task_name[5] = i + '1';
+    xTaskCreate(vTreadTask,
+                task_name,
+                TREAD_STACK_SIZE, 
+                (tasks + i),
+                TREAD_PRIORITY,
+                (TaskHandle_t*) NULL );
+  }
   
   xTaskCreate( vEntranceTask, 
               "Entrance", 
@@ -688,5 +731,6 @@ void init_tasks(void) {
               NULL, 
               DJ_PRIORITY, 
               ( TaskHandle_t * ) NULL );
+  
 }
 

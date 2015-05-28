@@ -8,10 +8,15 @@
 #define NO_FEEDBACK (0x00)
 #define END_BYTE    (0xEF)
 
-#define FILE_1      (1)
-#define FILE_2      (2)
-#define FILE_3      (3)
-#define FILE_4      (4)
+
+#define ENTRANCE_AUDIO        (1)
+#define CORRECT_AUDIO         (2)
+#define MINE_AUDIO            (3)
+#define ORDER_ERR_AUDIO       (4)
+#define TREAD_COMPLETE_AUDIO  (5)
+#define LASER_CORRECT_AUDIO   (6)
+#define LASER_ERR_AUDIO       (7)
+
 
 int player_play_file(short index, TickType_t xTicksToWait);
 

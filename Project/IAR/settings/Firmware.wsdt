@@ -3,7 +3,7 @@
 <Workspace>
   <ConfigDictionary>
     
-  <CurrentConfigs><Project>Dragon/Debug</Project><Project>DJ_Sona/Debug</Project><Project>Final/Debug</Project><Project>Pentacle/Debug</Project><Project>Play_Button/Debug</Project><Project>Jinx/Debug</Project><Project>Painting/Debug</Project><Project>Shooting/Debug</Project></CurrentConfigs><CurrentProj>Dragon</CurrentProj><OverviewSelected>0</OverviewSelected></ConfigDictionary>
+  <CurrentConfigs><Project>Dragon/Debug</Project><Project>DJ_Sona/Debug</Project><Project>Final/Debug</Project><Project>Jinx/Debug</Project><Project>Painting/Debug</Project><Project>Pentacle/Debug</Project><Project>Play_Button/Debug</Project><Project>Shooting/Debug</Project></CurrentConfigs><CurrentProj>Dragon</CurrentProj><OverviewSelected>0</OverviewSelected></ConfigDictionary>
   <Desktop>
     <Static>
       <Workspace>
@@ -32,7 +32,7 @@
             <Factory>Workspace</Factory>
             <Session>
               
-            <NodeDict><ExpandedNode>&lt;ws&gt;</ExpandedNode><ExpandedNode>DJ_Sona</ExpandedNode><ExpandedNode>DJ_Sona/Application</ExpandedNode><ExpandedNode>DJ_Sona/FreeRTOS</ExpandedNode><ExpandedNode>Dragon</ExpandedNode><ExpandedNode>Dragon/Application</ExpandedNode><ExpandedNode>Dragon/CMSIS</ExpandedNode><ExpandedNode>Final</ExpandedNode><ExpandedNode>Final/Application</ExpandedNode><ExpandedNode>Jinx</ExpandedNode><ExpandedNode>Jinx/Application</ExpandedNode><ExpandedNode>Jinx/FreeRTOS</ExpandedNode><ExpandedNode>Jinx/FreeRTOS/Portable</ExpandedNode><ExpandedNode>Painting</ExpandedNode><ExpandedNode>Painting/Application</ExpandedNode><ExpandedNode>Painting/FreeRTOS</ExpandedNode><ExpandedNode>Pentacle</ExpandedNode><ExpandedNode>Pentacle/Application</ExpandedNode><ExpandedNode>Play_Button</ExpandedNode><ExpandedNode>Play_Button/Application</ExpandedNode><ExpandedNode>Shooting</ExpandedNode><ExpandedNode>Shooting/Application</ExpandedNode></NodeDict></Session>
+            <NodeDict><ExpandedNode>&lt;ws&gt;</ExpandedNode><ExpandedNode>DJ_Sona</ExpandedNode><ExpandedNode>DJ_Sona/Application</ExpandedNode><ExpandedNode>Dragon</ExpandedNode><ExpandedNode>Dragon/Application</ExpandedNode><ExpandedNode>Dragon/CMSIS</ExpandedNode><ExpandedNode>Final</ExpandedNode><ExpandedNode>Final/Application</ExpandedNode><ExpandedNode>Jinx</ExpandedNode><ExpandedNode>Jinx/Application</ExpandedNode><ExpandedNode>Jinx/FreeRTOS</ExpandedNode><ExpandedNode>Jinx/FreeRTOS/Portable</ExpandedNode><ExpandedNode>Painting</ExpandedNode><ExpandedNode>Painting/Application</ExpandedNode><ExpandedNode>Painting/FreeRTOS</ExpandedNode><ExpandedNode>Pentacle</ExpandedNode><ExpandedNode>Pentacle/Application</ExpandedNode><ExpandedNode>Play_Button</ExpandedNode><ExpandedNode>Play_Button/Application</ExpandedNode><ExpandedNode>Shooting</ExpandedNode><ExpandedNode>Shooting/Application</ExpandedNode></NodeDict></Session>
           </Tab>
         </Tabs>
         
@@ -52,14 +52,14 @@
       
       
       
-    <Pane><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Source\Application\Dragon\ApplicationTasks.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>243</YPos2><SelStart2>10017</SelStart2><SelEnd2>10017</SelEnd2></Tab><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Source\Application\Dragon\player.h</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>0</YPos2><SelStart2>431</SelStart2><SelEnd2>448</SelEnd2></Tab><ActiveTab>1</ActiveTab></Pane><ActivePane>0</ActivePane><Sizes><Pane><X>1000000</X><Y>1000000</Y></Pane></Sizes><SplitMode>1</SplitMode></Editor>
+    <Pane/><ActivePane>0</ActivePane><Sizes><Pane><X>1000000</X><Y>1000000</Y></Pane></Sizes><SplitMode>1</SplitMode></Editor>
     <Positions>
       
       
       
       
       
-    <Top><Row0><Sizes><Toolbar-0280B888><key>iaridepm.enu1</key></Toolbar-0280B888></Sizes></Row0></Top><Left><Row0><Sizes><Wnd3><Rect><Top>-2</Top><Left>-2</Left><Bottom>742</Bottom><Right>297</Right><x>-2</x><y>-2</y><xscreen>200</xscreen><yscreen>199</yscreen><sizeHorzCX>104167</sizeHorzCX><sizeHorzCY>203893</sizeHorzCY><sizeVertCX>155729</sizeVertCX><sizeVertCY>762295</sizeVertCY></Rect></Wnd3></Sizes></Row0></Left><Right><Row0><Sizes/></Row0></Right><Bottom><Row0><Sizes><Wnd4><Rect><Top>-2</Top><Left>-2</Left><Bottom>189</Bottom><Right>1922</Right><x>-2</x><y>-2</y><xscreen>1924</xscreen><yscreen>191</yscreen><sizeHorzCX>1002083</sizeHorzCX><sizeHorzCY>195697</sizeHorzCY><sizeVertCX>104167</sizeVertCX><sizeVertCY>203893</sizeVertCY></Rect></Wnd4></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
+    <Top><Row0><Sizes><Toolbar-027ABA80><key>iaridepm.enu1</key></Toolbar-027ABA80></Sizes></Row0></Top><Left><Row0><Sizes><Wnd3><Rect><Top>-2</Top><Left>-2</Left><Bottom>742</Bottom><Right>297</Right><x>-2</x><y>-2</y><xscreen>200</xscreen><yscreen>199</yscreen><sizeHorzCX>104167</sizeHorzCX><sizeHorzCY>203893</sizeHorzCY><sizeVertCX>155729</sizeVertCX><sizeVertCY>762295</sizeVertCY></Rect></Wnd3></Sizes></Row0></Left><Right><Row0><Sizes/></Row0></Right><Bottom><Row0><Sizes><Wnd4><Rect><Top>-2</Top><Left>-2</Left><Bottom>189</Bottom><Right>1922</Right><x>-2</x><y>-2</y><xscreen>1924</xscreen><yscreen>191</yscreen><sizeHorzCX>1002083</sizeHorzCX><sizeHorzCY>195697</sizeHorzCY><sizeVertCX>104167</sizeVertCX><sizeVertCY>203893</sizeVertCY></Rect></Wnd4></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
   </Desktop>
 </Workspace>
 
