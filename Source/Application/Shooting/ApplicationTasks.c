@@ -7,7 +7,7 @@
 #include "semphr.h"
 
 #include "ApplicationConfig.h"
-
+#include "player.h"
 /* Private define ------------------------------------------------------------*/
 enum {
   INIT,
@@ -36,6 +36,10 @@ enum {
 #define LOCK_PIN                (GPIO_Pin_6)
 #define LOCK_OFF()              {GPIO_SetBits(LOCK_PORT, LOCK_PIN);}
 #define LOCK_ON()               {GPIO_ResetBits(LOCK_PORT, LOCK_PIN);}
+
+#define USART1_PORT             (GPIOA)
+#define USART1_TX_PIN           (GPIO_Pin_9)
+#define USART1_RX_PIN           (GPIO_Pin_10)
 
 #define LED_S1_PORT             (GPIOA)
 #define LED_S1_1_PIN            (GPIO_Pin_12)
@@ -115,6 +119,8 @@ static portTASK_FUNCTION( vMainTask, pvParameters ) {
         break;
       }
       case ACTION: {
+        /* Play audio */
+        player_play_file(COMPLETE_AUDIO, 0);
         LOCK_ON();
         status = FINISH;
         break;
@@ -152,10 +158,14 @@ static portTASK_FUNCTION( vSoldierOneTask, pvParameters ) {
         for (i = 0; i < 4; i++) {
           if (pdTRUE == xSemaphoreTake(xReciever1Semaphore, DESINTERVAL)) {
             if (3 == i) {
-              /* The last switch is passing */
+              /* Shooting when the last led is on */
               status = ACTION;
+              /* Play audio */
+              player_play_file(CORRECT_AUDIO, 0);
             } else {
               status = ERRORLED;
+              /* Play audio */
+              player_play_file(ERROR_AUDIO, 0);
             }
           }
           LED_S1_OFF(LED_S1_4_PIN >> i);
@@ -217,10 +227,14 @@ static portTASK_FUNCTION( vSoldierTwoTask, pvParameters ) {
         for (i = 0; i < 4; i++) {
           if (pdTRUE == xSemaphoreTake(xReciever2Semaphore, DESINTERVAL)) {
             if (3 == i) {
-              /* The last switch is passing */
+              /* Shooting when the last led is on */
               status = ACTION;
+              /* Play audio */
+              player_play_file(CORRECT_AUDIO, 0);
             } else {
               status = ERRORLED;
+              /* Play audio */
+              player_play_file(ERROR_AUDIO, 0);
             }
           }
           LED_S2_OFF(LED_S2_4_PIN >> i);
@@ -282,10 +296,14 @@ static portTASK_FUNCTION( vSoldierThreeTask, pvParameters ) {
         for (i = 0; i < 4; i++) {
           if (pdTRUE == xSemaphoreTake(xReciever3Semaphore, DESINTERVAL)) {
             if (3 == i) {
-              /* The last switch is passing */
+              /* Shooting when the last led is on */
               status = ACTION;
+              /* Play audio */
+              player_play_file(CORRECT_AUDIO, 0);
             } else {
               status = ERRORLED;
+              /* Play audio */
+              player_play_file(ERROR_AUDIO, 0);
             }
           }
           LED_S3_OFF(LED_S3_4_PIN >> i);
@@ -347,10 +365,14 @@ static portTASK_FUNCTION( vCannonTask, pvParameters ) {
         for (i = 0; i < 6; i++) {
           if (pdTRUE == xSemaphoreTake(xReciever4Semaphore, DESINTERVAL)) {
             if (5 == i) {
-              /* The last switch is passing */
+              /* Shooting when the last led is on */
               status = ACTION;
+              /* Play audio */
+              player_play_file(CORRECT_AUDIO, 0);
             } else {
               status = ERRORLED;
+              /* Play audio */
+              player_play_file(ERROR_AUDIO, 0);
             }
           }
           LED_C1_OFF(LED_C1_6_PIN >> i);

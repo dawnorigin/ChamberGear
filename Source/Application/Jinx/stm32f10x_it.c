@@ -240,14 +240,14 @@ void RCC_IRQHandler(void)
 *******************************************************************************/
 void EXTI0_IRQHandler(void)
 {
-  extern SemaphoreHandle_t xEntranceSemaphore;
+  extern SemaphoreHandle_t xCrabSemaphore;
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
   if (EXTI_GetITStatus(EXTI_Line0) != RESET) {
     
     /* Disable the interrupt */
     EXTI->IMR &= ~ EXTI_Line0;
     
-    xSemaphoreGiveFromISR(xEntranceSemaphore, &xHigherPriorityTaskWoken);
+    xSemaphoreGiveFromISR(xCrabSemaphore, &xHigherPriorityTaskWoken);
     
     /* Clear interrupt pending bit */
     EXTI_ClearITPendingBit(EXTI_Line0);
@@ -264,14 +264,15 @@ void EXTI0_IRQHandler(void)
 *******************************************************************************/
 void EXTI1_IRQHandler(void)
 {
-  extern SemaphoreHandle_t xCrabSemaphore;
+  
+  extern SemaphoreHandle_t xEntranceSemaphore;
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
   if (EXTI_GetITStatus(EXTI_Line1) != RESET) {
     
     /* Disable the interrupt */
     EXTI->IMR &= ~ EXTI_Line1;
     
-    xSemaphoreGiveFromISR(xCrabSemaphore, &xHigherPriorityTaskWoken);
+    xSemaphoreGiveFromISR(xEntranceSemaphore, &xHigherPriorityTaskWoken);
     
     /* Clear interrupt pending bit */
     EXTI_ClearITPendingBit(EXTI_Line1);
@@ -481,7 +482,7 @@ void CAN_SCE_IRQHandler(void)
 *******************************************************************************/
 void EXTI9_5_IRQHandler(void)
 {
-  extern QueueHandle_t xTreadQueue;
+  extern SemaphoreHandle_t xTreadSemaphore[];
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
   IT_event event;
   
@@ -491,9 +492,14 @@ void EXTI9_5_IRQHandler(void)
     EXTI->IMR &= ~ event.event;
     /* Clear interrupt pending bit */
     EXTI_ClearITPendingBit(event.event);
-    
-    event.time_stamp = xTaskGetTickCountFromISR();
-    xQueueSendFromISR(xTreadQueue, &event, &xHigherPriorityTaskWoken);
+    if(RESET != (event.event & GPIO_Pin_5))
+      xSemaphoreGiveFromISR(xTreadSemaphore[0], &xHigherPriorityTaskWoken);
+    if(RESET != (event.event & GPIO_Pin_6))
+      xSemaphoreGiveFromISR(xTreadSemaphore[1], &xHigherPriorityTaskWoken);
+    if(RESET != (event.event & GPIO_Pin_8))
+      xSemaphoreGiveFromISR(xTreadSemaphore[2], &xHigherPriorityTaskWoken);
+    if(RESET != (event.event & GPIO_Pin_9))
+      xSemaphoreGiveFromISR(xTreadSemaphore[3], &xHigherPriorityTaskWoken);
   }
   portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
@@ -711,7 +717,7 @@ void USART3_IRQHandler(void)
 *******************************************************************************/
 void EXTI15_10_IRQHandler(void)
 {
-  extern QueueHandle_t xTreadQueue;
+  extern SemaphoreHandle_t xTreadSemaphore[];
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
   IT_event event;
   
@@ -722,8 +728,14 @@ void EXTI15_10_IRQHandler(void)
     /* Clear interrupt pending bit */
     EXTI_ClearITPendingBit(event.event);
     
-    event.time_stamp = xTaskGetTickCountFromISR();
-    xQueueSendFromISR(xTreadQueue, &event, &xHigherPriorityTaskWoken);
+    if(RESET != (event.event & GPIO_Pin_5))
+      xSemaphoreGiveFromISR(xTreadSemaphore[0], &xHigherPriorityTaskWoken);
+    if(RESET != (event.event & GPIO_Pin_6))
+      xSemaphoreGiveFromISR(xTreadSemaphore[1], &xHigherPriorityTaskWoken);
+    if(RESET != (event.event & GPIO_Pin_8))
+      xSemaphoreGiveFromISR(xTreadSemaphore[2], &xHigherPriorityTaskWoken);
+    if(RESET != (event.event & GPIO_Pin_9))
+      xSemaphoreGiveFromISR(xTreadSemaphore[3], &xHigherPriorityTaskWoken);
   }
   portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }

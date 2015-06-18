@@ -165,7 +165,7 @@ static portTASK_FUNCTION( vWeightTask, pvParameters ) {
         /* Open the door */
         DOOR_ON();
         /* Play music */
-        player_play_file(FILE_1, 0);
+        player_play_file(WEIGHT_AUDIO, 0);
         status = FINISH;
         break;
       }

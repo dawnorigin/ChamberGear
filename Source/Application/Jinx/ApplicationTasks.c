@@ -38,19 +38,23 @@ enum {
 };
 /* Private macro -------------------------------------------------------------*/
 #define JUMP_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
-#define JUMP_PRIORITY			  (tskIDLE_PRIORITY + 1 )
+#define JUMP_PRIORITY			  (tskIDLE_PRIORITY + 1)
 
 #define DOOR_STACK_SIZE     (configMINIMAL_STACK_SIZE * 2)
-#define DOOR_PRIORITY			  (tskIDLE_PRIORITY + 1 )
+#define DOOR_PRIORITY			  (tskIDLE_PRIORITY + 1)
+
+#define TREAD_STACK_SIZE    (configMINIMAL_STACK_SIZE * 2)
+#define TREAD_PRIORITY      (tskIDLE_PRIORITY + 2)
+
 
 #define PYRO1_PORT          (GPIOA)
-#define PYRO1_PIN           (GPIO_Pin_0)
+#define PYRO1_PIN           (GPIO_Pin_1)
 #define PYRO1_STATUS()      GPIO_ReadInputDataBit(PYRO1_PORT, PYRO1_PIN)
 #define ENABLE_PYRO1_IT()   {EXTI->IMR |= PYRO1_PIN;}
 #define DISABLE_PYRO1_IT()  {EXTI->IMR &= (~PYRO1_PIN);}
 
 #define CRAB_PORT           (GPIOA)
-#define CRAB_PIN            (GPIO_Pin_1)
+#define CRAB_PIN            (GPIO_Pin_0)
 #define CRAB_STATUS()       GPIO_ReadInputDataBit(CRAB_PORT, CRAB_PIN)
 #define ENABLE_CRAB_IT()    {EXTI->IMR |= CRAB_PIN;}
 #define DISABLE_CRAB_IT()   {EXTI->IMR &= (~CRAB_PIN);}
@@ -125,8 +129,13 @@ QueueHandle_t xTreadQueue;
 SemaphoreHandle_t xLaserSemaphore = NULL;
 SemaphoreHandle_t xCrabSemaphore = NULL;
 SemaphoreHandle_t xPyroSemaphore = NULL;
+SemaphoreHandle_t xTreadSemaphore[8];
 /* Used for pyroelectric detector */
 SemaphoreHandle_t xEntranceSemaphore = NULL;
+
+uint16_t treads[8] = {TREAD1_PIN, TREAD2_PIN, TREAD3_PIN, TREAD4_PIN,
+                      TREAD5_PIN, TREAD6_PIN, TREAD7_PIN, TREAD8_PIN};
+uint8_t tasks[8] = {0, 1, 2, 3, 4, 5, 6, 7};
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
 static portTASK_FUNCTION( vJumpTask, pvParameters ) {
@@ -188,32 +197,28 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
         } else {
           tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
         }
+        
         if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
-          /* Skip the key jitter step */
-          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
-          tread_event.event &= TREAD_PIN_ALL;
-          if (Bit_RESET == TREAD_STATUS(tread_event.event)) {
-            if (STEP0 == status) {
-              /* Record the current time */
-              tick_total = xTaskGetTickCount();
-            }
-            if (tread_event.event & TREAD_PIN_MINE) {
-              status = ERR_MINE;
-              break;
-            } else if (tread_event.event & TREAD_PIN_ERR(TREAD1_PIN)) {
-              status = ERR_ORDER;
-              break;
-            } else {
-              if (STEP0 == status) {
-                player_play_file(CORRECT_AUDIO, 0);
-                status = STEP1;
-              } else {
-                player_play_file(TREAD_COMPLETE_AUDIO, 0);
-                status = LASER;
-              }
-            }
+          if (STEP0 == status) {
+            /* Record the current time */
+            tick_total = xTaskGetTickCount();
           }
-          ENABLE_TREAD_IT(TREAD_PIN_ALL);
+          if (treads[tread_event.event] & TREAD_PIN_MINE) {
+            status = ERR_MINE;
+            break;
+          } else if (treads[tread_event.event] & TREAD_PIN_ERR(TREAD1_PIN)) {
+            status = ERR_ORDER;
+            break;
+          } else {
+            if (STEP0 == status) {
+              player_play_file(CORRECT_AUDIO, 0);
+              status = STEP1;
+            } else {
+              player_play_file(TREAD_COMPLETE_AUDIO, 0);
+              status = LASER;
+            }
+            ENABLE_TREAD_IT(TREAD_PIN_ALL);
+          }
         } else {
           status = ERR_ORDER;
         }
@@ -223,25 +228,21 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
       case STEP6: {
         tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
         if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
-          /* Skip the key jitter step */
-          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
-          tread_event.event &= TREAD_PIN_ALL;
-          if (Bit_RESET == TREAD_STATUS(tread_event.event)) {
-            if (tread_event.event & TREAD_PIN_MINE) {
-              status = ERR_MINE;
-              break;
-            } else if (tread_event.event & TREAD_PIN_ERR(TREAD2_PIN)) {
-              status = ERR_ORDER;
-              break;
+          if (treads[tread_event.event] & TREAD_PIN_MINE) {
+            status = ERR_MINE;
+            break;
+          } else if (treads[tread_event.event] & TREAD_PIN_ERR(TREAD2_PIN)) {
+            status = ERR_ORDER;
+            break;
+          } else {
+            player_play_file(CORRECT_AUDIO, 0);
+            if (STEP1 == status) {
+              status = STEP2;
             } else {
-              player_play_file(CORRECT_AUDIO, 0);
-              if (STEP1 == status)
-                status = STEP2;
-              else
-                status = STEP7;
+              status = STEP7;
             }
+            ENABLE_TREAD_IT(TREAD_PIN_ALL);
           }
-          ENABLE_TREAD_IT(TREAD_PIN_ALL);
         } else {
           status = ERR_ORDER;
         }
@@ -251,25 +252,21 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
       case STEP5: {
         tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
         if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
-          /* Skip the key jitter step */
-          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
-          tread_event.event &= TREAD_PIN_ALL;
-          if (Bit_RESET == TREAD_STATUS(tread_event.event)) {
-            if (tread_event.event & TREAD_PIN_MINE) {
-              status = ERR_MINE;
-              break;
-            } else if (tread_event.event & TREAD_PIN_ERR(TREAD4_PIN)) {
-              status = ERR_ORDER;
-              break;
-            } else {
-              player_play_file(CORRECT_AUDIO, 0);
-              if (STEP2 == status)
-                status = STEP3;
-              else 
-                status = STEP6;
+          if (treads[tread_event.event] & TREAD_PIN_MINE) {
+            status = ERR_MINE;
+            break;
+          } else if (treads[tread_event.event] & TREAD_PIN_ERR(TREAD4_PIN)) {
+            status = ERR_ORDER;
+            break;
+          } else {
+            player_play_file(CORRECT_AUDIO, 0);
+            if (STEP2 == status) {
+              status = STEP3;
+            } else { 
+              status = STEP6;
             }
+            ENABLE_TREAD_IT(TREAD_PIN_ALL);
           }
-          ENABLE_TREAD_IT(TREAD_PIN_ALL);
         } else {
           status = ERR_ORDER;
         }
@@ -279,42 +276,30 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
       case STEP4: {
         tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
         if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
-          /* Skip the key jitter step */
-          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
-          tread_event.event &= TREAD_PIN_ALL;
-          if (Bit_RESET == TREAD_STATUS(tread_event.event)) {
-            if (tread_event.event & TREAD_PIN_MINE) {
+            if (treads[tread_event.event] & TREAD_PIN_MINE) {
               status = ERR_MINE;
               break;
-            } else if (tread_event.event & 
+            } else if (treads[tread_event.event] & 
                                        TREAD_PIN_ERR(TREAD7_PIN | TREAD8_PIN)) {
               status = ERR_ORDER;
               break;
-            } else if ((TREAD7_PIN | TREAD8_PIN) == (tread_event.event 
-                                                  & (TREAD7_PIN | TREAD8_PIN))){
-              player_play_file(CORRECT_AUDIO, 0);
-              if (STEP3 == status) {
-                status = STEP4;
-              } else {
-                status = STEP5;
-              }
-            } else if (tread_event.event & TREAD7_PIN) {
+            } else if (treads[tread_event.event] & TREAD7_PIN) {
               tick_tmp = tread_event.time_stamp;
               if (STEP3 == status) {
                 status = STEP3_1;
               } else {
                 status = STEP4_1;
               }
+              ENABLE_TREAD_IT(TREAD_PIN_ALL);
             } else {
               tick_tmp = tread_event.time_stamp;
               if (STEP3 == status) {
-                status = STEP3_2;98g
+                status = STEP3_2;
               } else {
                 status = STEP4_2;
               }
+              ENABLE_TREAD_IT(TREAD_PIN_ALL);
             }
-          }
-          ENABLE_TREAD_IT(TREAD_PIN_ALL);
         } else {
           status = ERR_ORDER;
         }
@@ -324,31 +309,26 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
       case STEP4_1: {
         tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
         if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
-          /* Skip the key jitter step */
-          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
-          tread_event.event &= TREAD_PIN_ALL;
-          if (Bit_RESET == TREAD_STATUS(tread_event.event)) {
-            if (tread_event.event & TREAD_PIN_MINE) {
-              status = ERR_MINE;
-              break;
-            } else if (tread_event.event & TREAD_PIN_ERR(TREAD8_PIN)) {
+          if (treads[tread_event.event] & TREAD_PIN_MINE) {
+            status = ERR_MINE;
+            break;
+          } else if (treads[tread_event.event] & TREAD_PIN_ERR(TREAD8_PIN)) {
+            status = ERR_ORDER;
+            break;
+          } else {
+            if ((tread_event.time_stamp - tick_tmp) <= TWO_FEET_INTERVAL_MS) {
+              player_play_file(CORRECT_AUDIO, 0);
+              if (STEP3_1 == status) {
+                status = STEP4;
+              } else {
+                status = STEP5;
+              }
+              ENABLE_TREAD_IT(TREAD_PIN_ALL);
+            } else {
               status = ERR_ORDER;
               break;
-            } else {
-              if ((tread_event.time_stamp - tick_tmp) <= TWO_FEET_INTERVAL_MS) {
-                player_play_file(CORRECT_AUDIO, 0);
-                if (STEP3_1 == status) {
-                  status = STEP4;
-                } else {
-                  status = STEP5;
-                }
-              } else {
-                status = ERR_ORDER;
-                break;
-              }
             }
           }
-          ENABLE_TREAD_IT(TREAD_PIN_ALL);
         } else {
           status = ERR_ORDER;
         }
@@ -358,28 +338,24 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
       case STEP4_2: {
         tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
         if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
-          /* Skip the key jitter step */
-          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
-          tread_event.event &= TREAD_PIN_ALL;
-          if (Bit_RESET == TREAD_STATUS(tread_event.event)) {
-            if (tread_event.event & TREAD_PIN_MINE) {
-              status = ERR_MINE;
-              break;
-            } else if (tread_event.event & TREAD_PIN_ERR(TREAD7_PIN)) {
+          if (treads[tread_event.event] & TREAD_PIN_MINE) {
+            status = ERR_MINE;
+            break;
+          } else if (treads[tread_event.event] & TREAD_PIN_ERR(TREAD7_PIN)) {
+            status = ERR_ORDER;
+            break;
+          } else {
+            if ((tread_event.time_stamp - tick_tmp) < TWO_FEET_INTERVAL_MS) {
+              player_play_file(CORRECT_AUDIO, 0);
+              if (STEP3_2 == status) {
+                status = STEP4;
+              } else {
+                status = STEP5;
+              }
+              ENABLE_TREAD_IT(TREAD_PIN_ALL);
+            } else {
               status = ERR_ORDER;
               break;
-            } else {
-              if ((tread_event.time_stamp - tick_tmp) < TWO_FEET_INTERVAL_MS) {
-                player_play_file(CORRECT_AUDIO, 0);
-                if (STEP3_2 == status) {
-                  status = STEP4;
-                } else {
-                  status = STEP5;
-                }
-              } else {
-                status = ERR_ORDER;
-                break;
-              }
             }
           }
           ENABLE_TREAD_IT(TREAD_PIN_ALL);
@@ -519,6 +495,25 @@ static portTASK_FUNCTION( vDoorTask, pvParameters ) {
     }
   }
 }
+
+static portTASK_FUNCTION(vTreadTask, pvParameters) {
+  int index = *((char*)pvParameters);
+  IT_event event;
+  
+  event.event = index;
+  for(;;) {
+    if (pdTRUE == xSemaphoreTake(xTreadSemaphore[index], portMAX_DELAY)) {
+      /* Skip the key jitter step */
+      vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
+      if (Bit_RESET == TREAD_STATUS(treads[index])) {
+        event.time_stamp = xTaskGetTickCountFromISR();
+        xQueueSend(xTreadQueue, &event, 0);
+      }
+      ENABLE_TREAD_IT(treads[index]);
+    }
+  }//for(;;)
+}
+
 
 static void hardware_init(void) {
   GPIO_InitTypeDef GPIO_InitStructure;
@@ -674,9 +669,17 @@ static void hardware_init(void) {
   NVIC_Init( &NVIC_InitStructure );
 
   USART_Cmd( USART1, ENABLE );
+  
+  /* Init timer 2 */
+  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
+
+  
 }
 
 void init_tasks(void) {
+  char i;
+  char task_name[configMAX_TASK_NAME_LEN] = {'T','r','e','a','d','1',0};
+  
   /* Initialize hardware */
   hardware_init();
 
@@ -686,8 +689,19 @@ void init_tasks(void) {
   /* Create entre detector semaphore */
   xEntranceSemaphore = xSemaphoreCreateBinary();
   
-  /* Create switch queue */
+  /* Create tread queue */
   xTreadQueue = xQueueCreate(20, (unsigned portBASE_TYPE)sizeof(IT_event));  
+  
+  for (i = 0; i < 8; i++) {
+    xTreadSemaphore[i] = xSemaphoreCreateBinary();
+    task_name[5] = i + '1';
+    xTaskCreate(vTreadTask,
+                task_name,
+                TREAD_STACK_SIZE, 
+                (tasks + i),
+                TREAD_PRIORITY,
+                (TaskHandle_t*) NULL );
+  } 
   
   /* Create laser semaphore */
   xLaserSemaphore = xSemaphoreCreateBinary();

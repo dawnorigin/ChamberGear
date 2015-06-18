@@ -94,7 +94,13 @@ enum {
 #define ENABLE_BUTTON_IT(x)   {EXTI->IMR |= (x);}
 #define DISABLE_BUTTON_IT(x)  {EXTI->IMR &= (~(x));}
 
+
 /* Output pins */
+#define PLAYER_NEXT_PORT      (GPIOC)
+#define PLAYER_NEXT_PIN       (GPIO_Pin_13)
+#define PLAYER_NEXT_H()     {GPIO_SetBits(PLAYER_NEXT_PORT, PLAYER_NEXT_PIN);}
+#define PLAYER_NEXT_L()     {GPIO_ResetBits(PLAYER_NEXT_PORT, PLAYER_NEXT_PIN);}
+
 #define LAMP_PORT             (GPIOB)
 #define LAMP1_PIN             (GPIO_Pin_0)
 #define LAMP2_PIN             (GPIO_Pin_1)
@@ -164,6 +170,8 @@ SemaphoreHandle_t xTreadSemaphore[4];
 /* The queue used to hold button pressed event */
 QueueHandle_t xButtonQueue;
 
+TaskHandle_t xDJTaskHandle = NULL;
+
 uint8_t tasks[4] = {0, 1, 2, 3};
 uint16_t treads[4] = {TREAD1_PIN, TREAD2_PIN, TREAD3_PIN, TREAD4_PIN};
 uint16_t cast_lamp[4] = {CAST_LAMP1_PIN, CAST_LAMP2_PIN, 
@@ -196,6 +204,7 @@ static portTASK_FUNCTION( vEntranceTask, pvParameters ) {
             LAMP_ERR_OFF();
             vTaskDelay((TickType_t)LAMP_ERROR_FLASH_MS);
           }
+          LAMP_ERR_ON();
           status = FINISH;
         }
         break;
@@ -366,23 +375,28 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
               status = DJ_BLUE;
               LED_ON(LED1_PIN);
               LAMP_ON(LAMP1_PIN);
+              LAMP_ERR_OFF();
               player_play_file(DJ_BLUE_AUDIO, 0);
             } else if ((BUTTON2_PIN == (event.event & BUTTON2_PIN)) 
                        && (IDLE_GREEN == status)) {
               status = DJ_GREEN;
               LED_ON(LED2_PIN);
               LAMP_ON(LAMP2_PIN);
+              LAMP_ERR_OFF();
               player_play_file(DJ_GREEN_AUDIO, 0);
             } else if ((BUTTON3_PIN == (event.event & BUTTON3_PIN)) 
                        && (IDLE_PINK == status)) {
               status = DJ_PINK;
               LED_ON(LED3_PIN);
               LAMP_ON(LAMP3_PIN);
+              LAMP_ERR_OFF();
               player_play_file(DJ_PINK_AUDIO, 0);
             } else if ((BUTTON4_PIN == (event.event & BUTTON4_PIN)) 
                        && (IDLE_YELLOW == status)) {
               status = ACTION;
               LED_ON(LED4_PIN);
+              LAMP_ON(LAMP4_PIN);
+              LAMP_ERR_OFF();
               break;
             } else {
               status = BUTTON_ERR;
@@ -419,8 +433,10 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
           CAST_LAMP_ON(cast_lamp[index]);
           if (pdTRUE == xQueueReceive(xTreadQueue, &event, DJ_TREAD_DELAY_MS)) {
             if (index == event.event) {
-//              player_play_file((DJ_TREAD_CORRECT_AUDIO1 + 
-//                                DJ_TREAD_RANDOM_TIMES - i), 0);
+              /* Low plus for play next audio */
+              PLAYER_NEXT_L();
+              vTaskDelay((TickType_t)10);
+              PLAYER_NEXT_H();
               CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
               i--;
               continue;
@@ -447,9 +463,9 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
         player_play_file(DJ_BUTTON_ERR_AUDIO, 0);
         LED_OFF(LED_PIN_ALL);
         LAMP_OFF(LAMP_PIN_ALL);
-        LAMP_ERR_ON();
-        vTaskDelay((TickType_t)1000);
         LAMP_ERR_OFF();
+        vTaskDelay((TickType_t)500);
+        LAMP_ERR_ON();
         status = IDLE_BLUE;
         break;
       }
@@ -457,9 +473,9 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
         player_play_file(DJ_TREAD_ERR_AUDIO, 0);
         LED_OFF(LED_PIN_ALL);
         LAMP_OFF(LAMP_PIN_ALL);
-        LAMP_ERR_ON();
-        vTaskDelay((TickType_t)1000);
         LAMP_ERR_OFF();
+        vTaskDelay((TickType_t)500);
+        LAMP_ERR_ON();
         status = IDLE_BLUE;
         break;
       }
@@ -546,6 +562,13 @@ static void hardware_init(void) {
   GPIO_Init(BUTTON_PORT, &GPIO_InitStructure);
   
   /* Configure output GPIO */
+  PLAYER_NEXT_H();
+  GPIO_InitStructure.GPIO_Pin = PLAYER_NEXT_PIN;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(PLAYER_NEXT_PORT, &GPIO_InitStructure);
+  
+  
   LAMP_OFF(LAMP_PIN_ALL);
   GPIO_InitStructure.GPIO_Pin = LAMP_PIN_ALL;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
@@ -742,7 +765,7 @@ void init_tasks(void) {
               DJ_STACK_SIZE, 
               NULL, 
               DJ_PRIORITY, 
-              ( TaskHandle_t * ) NULL );
+              xDJTaskHandle );
   
 }
 

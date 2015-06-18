@@ -93,8 +93,8 @@ static portTASK_FUNCTION( vPlayBottonTask, pvParameters ) {
       case ACTION: {
         /* Turn on the lamps */
         LAMP_ON();
-        /* Play music */
-        player_play_file(FILE_1, 0);
+        /* Play audio */
+        player_play_file(PLAY_BUTTON_AUDIO, 0);
         status = FINISH;
         break;
       }

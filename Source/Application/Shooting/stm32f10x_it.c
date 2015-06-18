@@ -24,7 +24,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f10x_it.h"
-
+#include "SerialIO.h"
 /* Scheduler includes. */
 #include "FreeRTOS.h"
 #include "task.h"
@@ -640,6 +640,32 @@ void SPI2_IRQHandler(void)
 *******************************************************************************/
 void USART1_IRQHandler(void)
 {
+  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+
+	if( USART_GetITStatus( USART1, USART_IT_TXE ) == SET )
+	{
+		/* The interrupt was caused by the THR becoming empty.  Are there any
+		more characters to transmit? */
+		if(USART1_tx_buf.head != USART1_tx_buf.tail)
+		{
+			USART_SendData(USART1,  USART1_tx_buf.buffer[USART1_tx_buf.tail++]);
+      if (USART_TX_BUFFER_LENGTH == USART1_tx_buf.tail)
+        USART1_tx_buf.tail = 0;
+		}
+		else
+		{
+			USART_ITConfig( USART1, USART_IT_TXE, DISABLE );		
+		}		
+	}
+	
+	if( USART_GetITStatus( USART1, USART_IT_RXNE ) == SET )
+	{
+		USART1_rx_buf.buffer[USART1_rx_buf.head++] = USART_ReceiveData(USART1);
+    if (USART_RX_BUFFER_LENGTH == USART1_rx_buf.head)
+      USART1_rx_buf.head = 0;
+	}	
+	
+	portEND_SWITCHING_ISR( xHigherPriorityTaskWoken );
 }
 
 /*******************************************************************************

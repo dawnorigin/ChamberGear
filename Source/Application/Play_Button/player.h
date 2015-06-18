@@ -8,8 +8,7 @@
 #define NO_FEEDBACK (0x00)
 #define END_BYTE    (0xEF)
 
-#define FILE_1      (1)
-#define FILE_2      (2)
+#define PLAY_BUTTON_AUDIO      (1)
 
 int player_play_file(short index, TickType_t xTicksToWait);
 
