@@ -48,22 +48,22 @@ enum {
 
 
 #define PYRO1_PORT          (GPIOA)
-#define PYRO1_PIN           (GPIO_Pin_1)
+#define PYRO1_PIN           (GPIO_Pin_0)
 #define PYRO1_STATUS()      GPIO_ReadInputDataBit(PYRO1_PORT, PYRO1_PIN)
 #define ENABLE_PYRO1_IT()   {EXTI->IMR |= PYRO1_PIN;}
 #define DISABLE_PYRO1_IT()  {EXTI->IMR &= (~PYRO1_PIN);}
 
-#define CRAB_PORT           (GPIOA)
-#define CRAB_PIN            (GPIO_Pin_0)
-#define CRAB_STATUS()       GPIO_ReadInputDataBit(CRAB_PORT, CRAB_PIN)
-#define ENABLE_CRAB_IT()    {EXTI->IMR |= CRAB_PIN;}
-#define DISABLE_CRAB_IT()   {EXTI->IMR &= (~CRAB_PIN);}
-
 #define LASER_REV_PORT      (GPIOA)
-#define LASER_REV_PIN       (GPIO_Pin_2)
+#define LASER_REV_PIN       (GPIO_Pin_1)
 #define LASER_REV_STATUS()  GPIO_ReadInputDataBit(LASER_REV_PORT, LASER_REV_PIN)
 #define ENABLE_LASER_REV_IT()   {EXTI->IMR |= LASER_REV_PIN;}
 #define DISABLE_LASER_REV_IT()  {EXTI->IMR &= (~LASER_REV_PIN);}
+
+#define CRAB_PORT           (GPIOA)
+#define CRAB_PIN            (GPIO_Pin_2)
+#define CRAB_STATUS()       GPIO_ReadInputDataBit(CRAB_PORT, CRAB_PIN)
+#define ENABLE_CRAB_IT()    {EXTI->IMR |= CRAB_PIN;}
+#define DISABLE_CRAB_IT()   {EXTI->IMR &= (~CRAB_PIN);}
 
 #define PYRO2_PORT          (GPIOA)
 #define PYRO2_PIN           (GPIO_Pin_3)
@@ -151,18 +151,17 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
     switch (status) {
       case INIT: {
         status = SMOKE;
-        LAMP_OFF(LAMP_PIN_ALL);
-        SMOKE_OFF();
-        DISABLE_PYRO1_IT();
-        while (pdTRUE == xSemaphoreTake(xEntranceSemaphore, 0));
         DISABLE_TREAD_IT(TREAD_PIN_ALL);
-        while (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, 0));
-        /* Disable the laser reciever interrupt */
-        DISABLE_LASER_REV_IT();
+        /* Shut down the lamp */
+        LAMP_OFF(LAMP_PIN_ALL);
+        /* Disable the smoke machine */
+        SMOKE_OFF();
         /* Shut down the laser transmitter */
         LASER_TX_OFF();
-        while (pdTRUE == xSemaphoreTake(xLaserSemaphore, 0));
+        /* Close the crab box */
         BOX_CRAB_OFF();
+        DISABLE_PYRO1_IT();
+        while (pdTRUE == xSemaphoreTake(xEntranceSemaphore, 0));
         /* Enable entey pyro detector */
         ENABLE_PYRO1_IT();
         break;
@@ -365,33 +364,26 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
         break;
       }
       case LASER: {
-        /* Turn on laser trasmitter */
-        LASER_TX_ON();
-        /* Wait for the laser is stable */
-        vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
         /* Flush the xLaserSemaphore Semaphore */
         while (pdTRUE == xSemaphoreTake(xLaserSemaphore, 0));
-        /* Check the reciever status */
-        if (LASER_REV_STATUS()) {
+        /* Clear TIM2 interrupt pending bit */
+        TIM_ClearITPendingBit(TIM2, (TIM_IT_CC1 | TIM_IT_CC2 | TIM_IT_CC3));
+        /* Enable the TIM2 Interrupt Request */
+        TIM_ITConfig(TIM2, (TIM_IT_CC1 | TIM_IT_CC2 | TIM_IT_CC3), ENABLE);
+        /* Clear TIM2 counter */
+        TIM_SetCounter(TIM2, 0);
+        /* TIM enable counter */
+        TIM_Cmd(TIM2, ENABLE);
+        /* Turn on laser trasmitter */
+        LASER_TX_ON();
+        if (pdTRUE == xSemaphoreTake(xLaserSemaphore, ESCAPE_LASER_MS)) {
           player_play_file(LASER_CORRECT_AUDIO, 0);
           /* Reciever has caught the laser ray */
           status = FINISH;
-          vTaskDelay((TickType_t)KEEP_LASER_ON_MS);
           /* Open the crab box */
           BOX_CRAB_ON();
         } else {
-          /* Enable laser reciever interrupt */
-          ENABLE_LASER_REV_IT();
-          /* Reciever has not caught the laser ray */
-          if (pdTRUE == xSemaphoreTake(xLaserSemaphore, ESCAPE_LASER_MS)) {
-            player_play_file(LASER_CORRECT_AUDIO, 0);
-            status = FINISH;
-            vTaskDelay((TickType_t)KEEP_LASER_ON_MS);
-            /* Open the crab box */
-            BOX_CRAB_ON();
-          } else {
-            status = ERR_LASER;
-          }
+          status = ERR_LASER;
         }
         /* Shut down the laser transmitter */
         LASER_TX_OFF();
@@ -520,6 +512,9 @@ static void hardware_init(void) {
   NVIC_InitTypeDef NVIC_InitStructure;
   EXTI_InitTypeDef EXTI_InitStructure;
   USART_InitTypeDef USART_InitStructure;
+  TIM_TimeBaseInitTypeDef TIM_TimeBaseStructure;
+  TIM_ICInitTypeDef TIM_ICInitStructure;
+  TIM_OCInitTypeDef TIM_OCInitStructure;
   
   /* Configure input GPIO */
   GPIO_InitStructure.GPIO_Pin = PYRO1_PIN;
@@ -533,7 +528,7 @@ static void hardware_init(void) {
   GPIO_Init(CRAB_PORT, &GPIO_InitStructure);
 
   GPIO_InitStructure.GPIO_Pin = LASER_REV_PIN;
-  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN_FLOATING;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPD;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(LASER_REV_PORT, &GPIO_InitStructure);
 
@@ -597,7 +592,7 @@ static void hardware_init(void) {
   GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource12);
   GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource15);
   
-	EXTI_InitStructure.EXTI_Line = CRAB_PIN|PYRO1_PIN|PYRO2_PIN|LASER_REV_PIN;
+	EXTI_InitStructure.EXTI_Line = CRAB_PIN|PYRO1_PIN|PYRO2_PIN;
   EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
   EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
   EXTI_InitStructure.EXTI_LineCmd = ENABLE;
@@ -615,9 +610,14 @@ static void hardware_init(void) {
   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&NVIC_InitStructure);
 
-	NVIC_InitStructure.NVIC_IRQChannel = EXTI1_IRQn;
+//	NVIC_InitStructure.NVIC_IRQChannel = EXTI1_IRQn;
+//  NVIC_Init(&NVIC_InitStructure);
+  NVIC_InitStructure.NVIC_IRQChannel = TIM2_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 
+                          configLIBRARY_KERNEL_INTERRUPT_PRIORITY;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&NVIC_InitStructure);
-
+  
 	NVIC_InitStructure.NVIC_IRQChannel = EXTI2_IRQn;
   NVIC_Init(&NVIC_InitStructure);
 
@@ -666,14 +666,38 @@ static void hardware_init(void) {
                                   configLIBRARY_KERNEL_INTERRUPT_PRIORITY;
   NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-  NVIC_Init( &NVIC_InitStructure );
+  NVIC_Init(&NVIC_InitStructure);
 
-  USART_Cmd( USART1, ENABLE );
+  USART_Cmd(USART1, ENABLE);
   
   /* Init timer 2 */
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
 
-  
+  /* Time base configuration */
+  TIM_TimeBaseStructure.TIM_Period = 65535;
+  TIM_TimeBaseStructure.TIM_Prescaler = (36000 - 1);
+  TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+  TIM_TimeBaseInit(TIM2, &TIM_TimeBaseStructure);
+  /* Select the TIM2 Input Trigger: TI1FP1 */
+  TIM_SelectInputTrigger(TIM2, TIM_TS_TI2FP2);
+  /* Select the slave Mode: Reset Mode */
+  TIM_SelectSlaveMode(TIM2, TIM_SlaveMode_Reset);
+  /* Enable the Master/Slave Mode */
+  TIM_SelectMasterSlaveMode(TIM2, TIM_MasterSlaveMode_Enable);
+
+  TIM_ICInitStructure.TIM_Channel = TIM_Channel_2;
+  TIM_ICInitStructure.TIM_ICPolarity = TIM_ICPolarity_Rising;
+  TIM_ICInitStructure.TIM_ICSelection = TIM_ICSelection_DirectTI;
+  TIM_ICInitStructure.TIM_ICPrescaler = TIM_ICPSC_DIV1;
+  TIM_ICInitStructure.TIM_ICFilter = 0x0;
+  TIM_PWMIConfig(TIM2, &TIM_ICInitStructure);
+
+  /* Output Compare Active Mode configuration: Channel2 */
+  TIM_OCInitStructure.TIM_OCMode = TIM_OCMode_Active;
+  TIM_OCInitStructure.TIM_OutputState = TIM_OutputState_Disable;
+  TIM_OCInitStructure.TIM_Pulse = (KEEP_LASER_ON_MS * 2);
+  TIM_OC3Init(TIM2, &TIM_OCInitStructure);
 }
 
 void init_tasks(void) {

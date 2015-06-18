@@ -240,14 +240,15 @@ void RCC_IRQHandler(void)
 *******************************************************************************/
 void EXTI0_IRQHandler(void)
 {
-  extern SemaphoreHandle_t xCrabSemaphore;
+  extern SemaphoreHandle_t xEntranceSemaphore;
+  
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
   if (EXTI_GetITStatus(EXTI_Line0) != RESET) {
     
     /* Disable the interrupt */
     EXTI->IMR &= ~ EXTI_Line0;
     
-    xSemaphoreGiveFromISR(xCrabSemaphore, &xHigherPriorityTaskWoken);
+    xSemaphoreGiveFromISR(xEntranceSemaphore, &xHigherPriorityTaskWoken);
     
     /* Clear interrupt pending bit */
     EXTI_ClearITPendingBit(EXTI_Line0);
@@ -264,15 +265,14 @@ void EXTI0_IRQHandler(void)
 *******************************************************************************/
 void EXTI1_IRQHandler(void)
 {
-  
-  extern SemaphoreHandle_t xEntranceSemaphore;
+  extern SemaphoreHandle_t xLaserSemaphore;
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
   if (EXTI_GetITStatus(EXTI_Line1) != RESET) {
     
     /* Disable the interrupt */
     EXTI->IMR &= ~ EXTI_Line1;
     
-    xSemaphoreGiveFromISR(xEntranceSemaphore, &xHigherPriorityTaskWoken);
+    xSemaphoreGiveFromISR(xLaserSemaphore, &xHigherPriorityTaskWoken);
     
     /* Clear interrupt pending bit */
     EXTI_ClearITPendingBit(EXTI_Line1);
@@ -289,14 +289,14 @@ void EXTI1_IRQHandler(void)
 *******************************************************************************/
 void EXTI2_IRQHandler(void)
 {
-  extern SemaphoreHandle_t xLaserSemaphore;
+  extern SemaphoreHandle_t xCrabSemaphore;
   portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
   if (EXTI_GetITStatus(EXTI_Line2) != RESET) {
     
     /* Disable the interrupt */
     EXTI->IMR &= ~ EXTI_Line2;
     
-    xSemaphoreGiveFromISR(xLaserSemaphore, &xHigherPriorityTaskWoken);
+    xSemaphoreGiveFromISR(xCrabSemaphore, &xHigherPriorityTaskWoken);
     
     /* Clear interrupt pending bit */
     EXTI_ClearITPendingBit(EXTI_Line2);
@@ -559,8 +559,29 @@ void TIM1_CC_IRQHandler(void)
 *******************************************************************************/
 void TIM2_IRQHandler(void)
 {
+  extern SemaphoreHandle_t xLaserSemaphore;
+  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+  static int falling_flag = SET;
+  
+  if (RESET != TIM_GetITStatus(TIM2, TIM_IT_CC1)) {//falling
+    /* Clear TIM1 Capture compare interrupt pending bit */
+    TIM_ClearITPendingBit(TIM2, TIM_IT_CC1);
+    falling_flag = SET;
+  } else if (RESET != TIM_GetITStatus(TIM2, TIM_IT_CC2)) {//Rising
+    /* Clear TIM1 Capture compare interrupt pending bit */
+    TIM_ClearITPendingBit(TIM2, TIM_IT_CC2);
+    falling_flag = RESET;
+  } else {
+    /* Clear TIM1 Capture compare interrupt pending bit */
+    TIM_ClearITPendingBit(TIM2, TIM_IT_CC3);
+    if (RESET == falling_flag) {
+      xSemaphoreGiveFromISR(xLaserSemaphore, &xHigherPriorityTaskWoken);
+      /* Disable the TIM2 Interrupt Request */
+      TIM_ITConfig(TIM2, (TIM_IT_CC1 | TIM_IT_CC2 | TIM_IT_CC3), DISABLE);
+    }
+  }
+  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
-
 /*******************************************************************************
 * Function Name  : TIM3_IRQHandler
 * Description    : This function handles TIM3 global interrupt request.
