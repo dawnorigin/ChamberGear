@@ -96,7 +96,7 @@ enum {
 
 
 /* Output pins */
-#define PLAYER_NEXT_PORT      (GPIOC)
+#define PLAYER_NEXT_PORT      (GPIOA)
 #define PLAYER_NEXT_PIN       (GPIO_Pin_13)
 #define PLAYER_NEXT_H()     {GPIO_SetBits(PLAYER_NEXT_PORT, PLAYER_NEXT_PIN);}
 #define PLAYER_NEXT_L()     {GPIO_ResetBits(PLAYER_NEXT_PORT, PLAYER_NEXT_PIN);}
@@ -341,9 +341,9 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
         /* Clean DJ power on semaphore */
         while (pdTRUE == xSemaphoreTake(xDJPowerOnSemaphore, 0));
         /* Wait for DJ power on semaphore */
-        if (pdTRUE == xSemaphoreTake(xDJPowerOnSemaphore, portMAX_DELAY)) {
+        //if (pdTRUE == xSemaphoreTake(xDJPowerOnSemaphore, portMAX_DELAY)) {
           status = DJPOWERON;
-        }
+        //}
         break;
       }
       case DJPOWERON: {
@@ -363,6 +363,7 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
       case IDLE_PINK:
       case IDLE_YELLOW: {
         LAMP_OFF(LAMP_PIN_ALL);
+        LAMP_ERR_ON();
         ENABLE_BUTTON_IT(BUTTON_PIN_ALL);
         /* Occur when the crab is removed */        
         if (pdTRUE == xQueueReceive(xButtonQueue, &event, portMAX_DELAY)) {
@@ -411,7 +412,7 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
       case DJ_GREEN:
       case DJ_PINK: {
         srand(xTaskGetTickCount());
-        vTaskDelay((TickType_t)3000);
+        vTaskDelay((TickType_t)LAMP_CAST_AFTER_BUTTON);
         while (pdTRUE == xQueueReceive(xTreadQueue, &event, 0));
         
         int index, index_pre = 0;
@@ -428,16 +429,16 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
           } else {
             index_pre = index; 
           }
-          //vTaskDelay((TickType_t)DJ_TREAD_INTERVAL_MS);
           ENABLE_TREAD_IT(TREAD_PIN_ALL);
           CAST_LAMP_ON(cast_lamp[index]);
           if (pdTRUE == xQueueReceive(xTreadQueue, &event, DJ_TREAD_DELAY_MS)) {
             if (index == event.event) {
               /* Low plus for play next audio */
               PLAYER_NEXT_L();
-              vTaskDelay((TickType_t)10);
+              vTaskDelay((TickType_t)100);
               PLAYER_NEXT_H();
               CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
+              vTaskDelay((TickType_t)DJ_KILL_DELAY_MS);
               i--;
               continue;
             } else {
@@ -449,7 +450,7 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
             status = TREAD_ERR;
             break;
           }
-        }//for(;;)
+        }//while(;;)
         CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
         player_play_file(DJ_TREAD_COMPLETE_AUDIO, 0);
         switch (status) {
@@ -514,6 +515,7 @@ static portTASK_FUNCTION(vTreadTask, pvParameters) {
       if (Bit_RESET == TREAD_STATUS(treads[index])) {
         xQueueSend(xTreadQueue, &event, 0);
       }
+      vTaskDelay((TickType_t)500);
       ENABLE_TREAD_IT(treads[index]);
     }
   }//for(;;)

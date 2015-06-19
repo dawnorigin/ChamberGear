@@ -216,7 +216,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               player_play_file(TREAD_COMPLETE_AUDIO, 0);
               status = LASER;
             }
-            ENABLE_TREAD_IT(TREAD_PIN_ALL);
+            //ENABLE_TREAD_IT(TREAD_PIN_ALL);
           }
         } else {
           status = ERR_ORDER;
@@ -240,7 +240,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             } else {
               status = STEP7;
             }
-            ENABLE_TREAD_IT(TREAD_PIN_ALL);
+            //ENABLE_TREAD_IT(TREAD_PIN_ALL);
           }
         } else {
           status = ERR_ORDER;
@@ -264,7 +264,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             } else { 
               status = STEP6;
             }
-            ENABLE_TREAD_IT(TREAD_PIN_ALL);
+            //ENABLE_TREAD_IT(TREAD_PIN_ALL);
           }
         } else {
           status = ERR_ORDER;
@@ -297,7 +297,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               } else {
                 status = STEP4_2;
               }
-              ENABLE_TREAD_IT(TREAD_PIN_ALL);
+              //ENABLE_TREAD_IT(TREAD_PIN_ALL);
             }
         } else {
           status = ERR_ORDER;
@@ -322,7 +322,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               } else {
                 status = STEP5;
               }
-              ENABLE_TREAD_IT(TREAD_PIN_ALL);
+             // ENABLE_TREAD_IT(TREAD_PIN_ALL);
             } else {
               status = ERR_ORDER;
               break;
@@ -351,7 +351,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               } else {
                 status = STEP5;
               }
-              ENABLE_TREAD_IT(TREAD_PIN_ALL);
+              //ENABLE_TREAD_IT(TREAD_PIN_ALL);
             } else {
               status = ERR_ORDER;
               break;
@@ -501,6 +501,7 @@ static portTASK_FUNCTION(vTreadTask, pvParameters) {
         event.time_stamp = xTaskGetTickCountFromISR();
         xQueueSend(xTreadQueue, &event, 0);
       }
+      vTaskDelay((TickType_t)500);
       ENABLE_TREAD_IT(treads[index]);
     }
   }//for(;;)

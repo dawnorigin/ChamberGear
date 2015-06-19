@@ -67,8 +67,8 @@ void BSP_init(void) {
 //  BKP_TamperPinCmd(DISABLE);
 //  BKP_ITConfig(DISABLE);
   /* SWJ remap: disable JTAG, enable SWO */
-  GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
-  
+  //GPIO_PinRemapConfig(GPIO_Remap_SWJ_JTAGDisable, ENABLE);
+  GPIO_PinRemapConfig(GPIO_Remap_SWJ_Disable, ENABLE);
 #ifdef USE_STDPERIPH_DRIVER
   /* Configure the NVIC Preemption Priority Bits */  
   NVIC_PriorityGroupConfig(NVIC_PriorityGroup_4);

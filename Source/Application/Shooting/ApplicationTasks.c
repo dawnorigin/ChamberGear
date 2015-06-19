@@ -512,6 +512,17 @@ static void hardware_init(void) {
   
   /* Configure USART1 */
   USART_Init(USART1, &USART_InitStructure);
+  
+  USART_ITConfig( USART1, USART_IT_RXNE, ENABLE );
+
+  NVIC_InitStructure.NVIC_IRQChannel = USART1_IRQn;
+  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 
+                                  configLIBRARY_KERNEL_INTERRUPT_PRIORITY;
+  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+  NVIC_Init( &NVIC_InitStructure );
+
+  USART_Cmd( USART1, ENABLE );
 }
 
 void init_tasks(void) {
