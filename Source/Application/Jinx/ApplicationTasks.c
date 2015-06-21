@@ -142,6 +142,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
   int status = INIT;
   IT_event tread_event;
   TickType_t tick_tmp;
+  TickType_t tick_start;
   TickType_t tick_total;
   TickType_t tick_delay;
 	/* The parameters are not used. */
@@ -194,13 +195,14 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
         if (STEP0 == status) {
           tick_delay = portMAX_DELAY;
         } else {
-          tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
+          tick_total = xTaskGetTickCount() - tick_start;
+          tick_delay = (MAX_TREAD_MS > tick_total)?(MAX_TREAD_MS - tick_total):0;
         }
         
         if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
           if (STEP0 == status) {
             /* Record the current time */
-            tick_total = xTaskGetTickCount();
+            tick_start = xTaskGetTickCount();
           }
           if (treads[tread_event.event] & TREAD_PIN_MINE) {
             status = ERR_MINE;
@@ -211,12 +213,13 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
           } else {
             if (STEP0 == status) {
               player_play_file(CORRECT_AUDIO, 0);
+              ENABLE_TREAD_IT(TREAD_PIN_ALL & (~TREAD1_PIN));
               status = STEP1;
             } else {
+              DISABLE_TREAD_IT(TREAD_PIN_ALL);
               player_play_file(TREAD_COMPLETE_AUDIO, 0);
               status = LASER;
             }
-            //ENABLE_TREAD_IT(TREAD_PIN_ALL);
           }
         } else {
           status = ERR_ORDER;
@@ -225,7 +228,8 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
       }
       case STEP1:
       case STEP6: {
-        tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
+        tick_total = xTaskGetTickCount() - tick_start;
+        tick_delay = (MAX_TREAD_MS > tick_total)?(MAX_TREAD_MS - tick_total):0;
         if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
           if (treads[tread_event.event] & TREAD_PIN_MINE) {
             status = ERR_MINE;
@@ -240,7 +244,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             } else {
               status = STEP7;
             }
-            //ENABLE_TREAD_IT(TREAD_PIN_ALL);
+            ENABLE_TREAD_IT(TREAD_PIN_ALL & (~TREAD1_PIN));
           }
         } else {
           status = ERR_ORDER;
@@ -249,7 +253,8 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
       }
       case STEP2:
       case STEP5: {
-        tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
+        tick_total = xTaskGetTickCount() - tick_start;
+        tick_delay = (MAX_TREAD_MS > tick_total)?(MAX_TREAD_MS - tick_total):0;
         if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
           if (treads[tread_event.event] & TREAD_PIN_MINE) {
             status = ERR_MINE;
@@ -264,16 +269,36 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             } else { 
               status = STEP6;
             }
-            //ENABLE_TREAD_IT(TREAD_PIN_ALL);
+            ENABLE_TREAD_IT(TREAD_PIN_ALL & (~TREAD1_PIN));
           }
         } else {
           status = ERR_ORDER;
         }
         break;
       }
-      case STEP3:
       case STEP4: {
-        tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
+        while (!((Bit_SET == TREAD_STATUS(TREAD7_PIN)) && 
+                 (Bit_SET == TREAD_STATUS(TREAD8_PIN)))) {
+          tick_total = xTaskGetTickCount() - tick_start;
+          if (MAX_TREAD_MS <= tick_total) {
+            status = ERR_ORDER;
+            break;
+          }
+          vTaskDelay((TickType_t)5);
+        }
+        if (STEP4 != status)
+          break;
+        vTaskDelay((TickType_t)JUMP_HIGH_MS);
+        if ((Bit_SET == TREAD_STATUS(TREAD7_PIN)) && 
+            (Bit_SET == TREAD_STATUS(TREAD8_PIN))){
+          ENABLE_TREAD_IT(TREAD_PIN_ALL);
+        } else {
+          break;
+        }
+      }
+      case STEP3: {
+        tick_total = xTaskGetTickCount() - tick_start;
+        tick_delay = (MAX_TREAD_MS > tick_total)?(MAX_TREAD_MS - tick_total):0;
         if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
             if (treads[tread_event.event] & TREAD_PIN_MINE) {
               status = ERR_MINE;
@@ -289,7 +314,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               } else {
                 status = STEP4_1;
               }
-              ENABLE_TREAD_IT(TREAD_PIN_ALL);
+              ENABLE_TREAD_IT(TREAD_PIN_ALL & (~TREAD7_PIN));
             } else {
               tick_tmp = tread_event.time_stamp;
               if (STEP3 == status) {
@@ -297,7 +322,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               } else {
                 status = STEP4_2;
               }
-              //ENABLE_TREAD_IT(TREAD_PIN_ALL);
+              ENABLE_TREAD_IT(TREAD_PIN_ALL & (~TREAD8_PIN));
             }
         } else {
           status = ERR_ORDER;
@@ -306,7 +331,8 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
       }
       case STEP3_1:
       case STEP4_1: {
-        tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
+        tick_total = xTaskGetTickCount() - tick_start;
+        tick_delay = (MAX_TREAD_MS > tick_total)?(MAX_TREAD_MS - tick_total):0;
         if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
           if (treads[tread_event.event] & TREAD_PIN_MINE) {
             status = ERR_MINE;
@@ -322,7 +348,6 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               } else {
                 status = STEP5;
               }
-             // ENABLE_TREAD_IT(TREAD_PIN_ALL);
             } else {
               status = ERR_ORDER;
               break;
@@ -335,7 +360,8 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
       }
       case STEP3_2:
       case STEP4_2: {
-        tick_delay = MAX_TREAD_MS - (xTaskGetTickCount() - tick_total);
+        tick_total = xTaskGetTickCount() - tick_start;
+        tick_delay = (MAX_TREAD_MS > tick_total)?(MAX_TREAD_MS - tick_total):0;
         if (pdTRUE == xQueueReceive(xTreadQueue, &tread_event, tick_delay)) {
           if (treads[tread_event.event] & TREAD_PIN_MINE) {
             status = ERR_MINE;
@@ -351,13 +377,11 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
               } else {
                 status = STEP5;
               }
-              //ENABLE_TREAD_IT(TREAD_PIN_ALL);
             } else {
               status = ERR_ORDER;
               break;
             }
           }
-          ENABLE_TREAD_IT(TREAD_PIN_ALL);
         } else {
           status = ERR_ORDER;
         }
@@ -501,8 +525,8 @@ static portTASK_FUNCTION(vTreadTask, pvParameters) {
         event.time_stamp = xTaskGetTickCountFromISR();
         xQueueSend(xTreadQueue, &event, 0);
       }
-      vTaskDelay((TickType_t)500);
-      ENABLE_TREAD_IT(treads[index]);
+      //vTaskDelay((TickType_t)100);
+      //ENABLE_TREAD_IT(treads[index]);
     }
   }//for(;;)
 }

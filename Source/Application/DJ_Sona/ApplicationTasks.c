@@ -39,9 +39,6 @@ enum {
 #define CRAB_STACK_SIZE         (configMINIMAL_STACK_SIZE * 2)
 #define CRAB_PRIORITY			      (tskIDLE_PRIORITY + 1)
 
-#define SETS_STACK_SIZE         (configMINIMAL_STACK_SIZE * 2)
-#define SETS_PRIORITY			      (tskIDLE_PRIORITY + 1)
-
 #define DJ_STACK_SIZE           (configMINIMAL_STACK_SIZE * 2)
 #define DJ_PRIORITY			        (tskIDLE_PRIORITY + 1)
 
@@ -98,8 +95,13 @@ enum {
 /* Output pins */
 #define PLAYER_NEXT_PORT      (GPIOA)
 #define PLAYER_NEXT_PIN       (GPIO_Pin_13)
-#define PLAYER_NEXT_H()     {GPIO_SetBits(PLAYER_NEXT_PORT, PLAYER_NEXT_PIN);}
-#define PLAYER_NEXT_L()     {GPIO_ResetBits(PLAYER_NEXT_PORT, PLAYER_NEXT_PIN);}
+#define PLAYER_NEXT_H()   {GPIO_SetBits(PLAYER_NEXT_PORT, PLAYER_NEXT_PIN);}
+#define PLAYER_NEXT_L()   {GPIO_ResetBits(PLAYER_NEXT_PORT, PLAYER_NEXT_PIN);}
+
+#define PLAYER_FIRST_PORT     (GPIOA)
+#define PLAYER_FIRST_PIN      (GPIO_Pin_14)
+#define PLAYER_FIRST_H()  {GPIO_SetBits(PLAYER_FIRST_PORT, PLAYER_FIRST_PIN);}
+#define PLAYER_FIRST_L()  {GPIO_ResetBits(PLAYER_FIRST_PORT, PLAYER_FIRST_PIN);}
 
 #define LAMP_PORT             (GPIOB)
 #define LAMP1_PIN             (GPIO_Pin_0)
@@ -161,9 +163,6 @@ enum {
 SemaphoreHandle_t xResetSemaphore = NULL;
 SemaphoreHandle_t xPyroSemaphore = NULL;
 SemaphoreHandle_t xCrabSemaphore = NULL;
-SemaphoreHandle_t xSet1Semaphore = NULL;
-SemaphoreHandle_t xSet2Semaphore = NULL;
-SemaphoreHandle_t xDJPowerOnSemaphore = NULL;
 /* The queue used to hold step trod */
 QueueHandle_t xTreadQueue;
 SemaphoreHandle_t xTreadSemaphore[4];
@@ -188,7 +187,13 @@ static portTASK_FUNCTION( vEntranceTask, pvParameters ) {
   for(;;) {
     switch (status) {
       case INIT: {
+        LAMP_OFF(LAMP_PIN_ALL);
+        LED_OFF(LED_PIN_ALL);
+        CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
+        DOOR_OFF();
         LAMP_ERR_OFF();
+        DISABLE_BUTTON_IT(BUTTON_PIN_ALL);
+        DISABLE_TREAD_IT(TREAD_PIN_ALL);
         DISABLE_PYRO_IT();
         while (pdTRUE == xSemaphoreTake(xPyroSemaphore, 0));
         ENABLE_PYRO_IT();
@@ -220,106 +225,8 @@ static portTASK_FUNCTION( vEntranceTask, pvParameters ) {
   }
 }
 
-static portTASK_FUNCTION( vCrabTask, pvParameters ) {
-  int status = INIT;
-
-	/* The parameters are not used. */
-	( void ) pvParameters;
-  
-  for(;;) {
-    switch (status) {
-      case INIT: {
-        WALL_OFF();
-        WALL_LAMP_OFF();
-        DISABLE_CRAB_IT();
-        while (pdTRUE == xSemaphoreTake(xCrabSemaphore, 0));
-        ENABLE_CRAB_IT();
-        status = IDLE;
-        break;
-      }
-      case IDLE: {
-        /* Occur when the crab is removed */        
-        if (pdTRUE == xSemaphoreTake(xCrabSemaphore, portMAX_DELAY)) {
-          /* Skip the key jitter step */
-          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
-          /* Check crab hall switch status */
-          if (Bit_RESET != CRAB_STATUS()) {
-            status = ACTION;
-          } else {
-            ENABLE_CRAB_IT();
-          }
-        }
-        break;
-      }
-      case ACTION: {
-        player_play_file(CRAB_REMOVE_AUDIO, 0);
-        /* Drop the wall */
-        WALL_ON();
-        /* Turn on the cast light */
-        WALL_LAMP_ON();
-        status = FINISH;
-        break;
-      }
-      case FINISH: {
-        /* Reset logic */
-        if (pdTRUE == xSemaphoreTake(xResetSemaphore, portMAX_DELAY)) {
-          status = INIT;
-        }
-        break;
-      }
-    }
-  }
-}
-
-static portTASK_FUNCTION( vSetsTask, pvParameters ) {
-  int status = INIT;
-
-	/* The parameters are not used. */
-	( void ) pvParameters;
-  
-  for(;;) {
-    switch (status) {
-      case INIT: {
-        DISABLE_SET1_IT();
-        DISABLE_SET2_IT()
-        status = IDLE;
-        break;
-      }
-      case IDLE: {
-        if ((Bit_RESET == SET1_STATUS()) && (Bit_RESET == SET2_STATUS())) {
-          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
-          if ((Bit_RESET == SET1_STATUS()) && (Bit_RESET == SET2_STATUS())) {
-            status = ACTION;
-          }
-        }
-        vTaskDelay((TickType_t)10);
-        break;
-      }
-      case ACTION: {
-        player_play_file(CRAB_SET_AUDIO, 0);
-        while (Bit_RESET != PLAYER_BUSY_STATUS());
-        for (;;) {
-          if (Bit_RESET != PLAYER_BUSY_STATUS())
-            break;
-          vTaskDelay((TickType_t)10);
-        }
-        xSemaphoreGive(xDJPowerOnSemaphore);
-        status = FINISH;
-        break;
-      }
-      case FINISH: {
-        /* Reset logic */
-        if (pdTRUE == xSemaphoreTake(xResetSemaphore, portMAX_DELAY)) {
-          status = INIT;
-        }
-        break;
-      }
-    }
-  }
-}
-int status = INIT;
 static portTASK_FUNCTION( vDJTask, pvParameters ) {
-  
+int status = INIT;  
   IT_event event;
   
 	/* The parameters are not used. */
@@ -338,12 +245,7 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
         /* Clean tread semaphore */
         DISABLE_TREAD_IT(TREAD_PIN_ALL);
         while (pdTRUE == xQueueReceive(xTreadQueue, &event, 0));
-        /* Clean DJ power on semaphore */
-        while (pdTRUE == xSemaphoreTake(xDJPowerOnSemaphore, 0));
-        /* Wait for DJ power on semaphore */
-        //if (pdTRUE == xSemaphoreTake(xDJPowerOnSemaphore, portMAX_DELAY)) {
-          status = DJPOWERON;
-        //}
+        status = DJPOWERON;
         break;
       }
       case DJPOWERON: {
@@ -433,10 +335,17 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
           CAST_LAMP_ON(cast_lamp[index]);
           if (pdTRUE == xQueueReceive(xTreadQueue, &event, DJ_TREAD_DELAY_MS)) {
             if (index == event.event) {
-              /* Low plus for play next audio */
-              PLAYER_NEXT_L();
-              vTaskDelay((TickType_t)100);
-              PLAYER_NEXT_H();
+              if (DJ_TREAD_RANDOM_TIMES == i){
+                /* Low plus for play first audio */
+                PLAYER_FIRST_L();
+                vTaskDelay((TickType_t)100);
+                PLAYER_FIRST_H();
+              } else {
+                /* Low plus for play next audio */
+                PLAYER_NEXT_L();
+                vTaskDelay((TickType_t)100);
+                PLAYER_NEXT_H();
+              }
               CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
               vTaskDelay((TickType_t)DJ_KILL_DELAY_MS);
               i--;
@@ -493,9 +402,97 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
         break;
       }
       case FINISH: {
-        /* Reset logic */
-        if (pdTRUE == xSemaphoreTake(xResetSemaphore, portMAX_DELAY)) {
+        vTaskDelete(NULL);
+        break;
+      }
+    }
+  }
+}
+
+static portTASK_FUNCTION( vCrabTask, pvParameters ) {
+  int status = INIT;
+
+	/* The parameters are not used. */
+	( void ) pvParameters;
+  
+  for(;;) {
+    switch (status) {
+      case INIT: {
+        DISABLE_SET1_IT();
+        DISABLE_SET2_IT();
+        WALL_OFF();
+        WALL_LAMP_OFF();
+        DISABLE_CRAB_IT();
+        while (pdTRUE == xSemaphoreTake(xCrabSemaphore, 0));
+        ENABLE_CRAB_IT();
+        status = IDLE;
+        break;
+      }
+      case IDLE: {
+        /* Block when the crab isn't on the set */
+        while (Bit_RESET != CRAB_STATUS()) {
+          vTaskDelay((TickType_t)10);
+        }
+        /* Delay seconds to start to dectect crab removing */
+        vTaskDelay((TickType_t)CRAB_DELAY_START_MS);
+        /* Waiting for removing the crab */        
+        if (pdTRUE == xSemaphoreTake(xCrabSemaphore, portMAX_DELAY)) {
+          /* Skip the key jitter step */
+          vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
+          /* Check crab hall switch status */
+          if (Bit_RESET != CRAB_STATUS()) {
+            /* Play audio */
+            player_play_file(CRAB_REMOVE_AUDIO, 0);
+            /* Drop the wall */
+            WALL_ON();
+            /* Turn on the cast light */
+            WALL_LAMP_ON();
+            status = ACTION;
+          } else {
+            ENABLE_CRAB_IT();
+          }
+        }
+        break;
+      }
+      case ACTION: {
+        if ((Bit_RESET == SET1_STATUS()) && (Bit_RESET == SET2_STATUS())) {
+          if (NULL == xDJTaskHandle) {
+            vTaskDelay((TickType_t)CRAB_SETS_DELAY_MS);
+            if ((Bit_RESET == SET1_STATUS()) && (Bit_RESET == SET2_STATUS())) {
+              /* The two crabs are both on the sets */
+              player_play_file(CRAB_SET_AUDIO, 0);
+              while (Bit_RESET != PLAYER_BUSY_STATUS());
+              for (;;) {
+                if (Bit_RESET != PLAYER_BUSY_STATUS())
+                  break;
+                vTaskDelay((TickType_t)10);
+              }
+              xTaskCreate(vDJTask, 
+                          "DJ", 
+                          DJ_STACK_SIZE, 
+                          NULL, 
+                          DJ_PRIORITY, 
+                          xDJTaskHandle);
+            }
+          }
+        } else if (NULL != xDJTaskHandle) {
+          vTaskDelay((TickType_t)CRAB_SETS_DELAY_MS);
+          if (!((Bit_RESET == SET1_STATUS()) && (Bit_RESET == SET2_STATUS()))) {
+            /* The two crabs are not both on the sets */
+            DISABLE_BUTTON_IT(BUTTON_PIN_ALL);
+            DISABLE_TREAD_IT(TREAD_PIN_ALL);
+            vTaskDelete(xDJTaskHandle);
+            xDJTaskHandle = NULL;
+            LAMP_OFF(LAMP_PIN_ALL);
+            LED_OFF(LED_PIN_ALL);
+            CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
+            LAMP_ERR_ON();
+          }
+        }
+        if (pdTRUE == xSemaphoreTake(xResetSemaphore, 0)) {
           status = INIT;
+        } else {
+          vTaskDelay((TickType_t)10);
         }
         break;
       }
@@ -570,6 +567,11 @@ static void hardware_init(void) {
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(PLAYER_NEXT_PORT, &GPIO_InitStructure);
   
+  PLAYER_FIRST_H();
+  GPIO_InitStructure.GPIO_Pin = PLAYER_FIRST_PIN;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_Out_PP;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(PLAYER_FIRST_PORT, &GPIO_InitStructure);
   
   LAMP_OFF(LAMP_PIN_ALL);
   GPIO_InitStructure.GPIO_Pin = LAMP_PIN_ALL;
@@ -714,15 +716,6 @@ void init_tasks(void) {
 
   /* Create crab remove semaphore */
   xCrabSemaphore = xSemaphoreCreateBinary();
-  
-  /* Create crab set 1 semaphore */
-  xSet1Semaphore = xSemaphoreCreateBinary();
-  
-  /* Create crab set 2 semaphore */
-  xSet2Semaphore = xSemaphoreCreateBinary();
-  
-  /* Create DJ power on semaphore */
-  xDJPowerOnSemaphore = xSemaphoreCreateBinary();
     
   /* Create tread event queue */
   xTreadQueue = xQueueCreate(20, (unsigned portBASE_TYPE)sizeof(IT_event));  
@@ -754,20 +747,5 @@ void init_tasks(void) {
               NULL, 
               CRAB_PRIORITY, 
               ( TaskHandle_t * ) NULL );
-
-  xTaskCreate( vSetsTask, 
-              "Sets", 
-              SETS_STACK_SIZE, 
-              NULL, 
-              SETS_PRIORITY, 
-              ( TaskHandle_t * ) NULL );
-  
-  xTaskCreate( vDJTask, 
-              "DJ", 
-              DJ_STACK_SIZE, 
-              NULL, 
-              DJ_PRIORITY, 
-              xDJTaskHandle );
-  
 }
 

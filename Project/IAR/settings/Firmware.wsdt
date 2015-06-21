@@ -3,7 +3,7 @@
 <Workspace>
   <ConfigDictionary>
     
-  <CurrentConfigs><Project>Dragon/Debug</Project><Project>DJ_Sona/Debug</Project><Project>Final/Debug</Project><Project>Shooting/Debug</Project><Project>Jinx/Debug</Project><Project>Painting/Debug</Project><Project>Pentacle/Debug</Project><Project>Play_Button/Debug</Project></CurrentConfigs><CurrentProj>DJ_Sona</CurrentProj><OverviewSelected>0</OverviewSelected></ConfigDictionary>
+  <CurrentConfigs><Project>Dragon/Debug</Project><Project>DJ_Sona/Debug</Project><Project>Final/Debug</Project><Project>Pentacle/Debug</Project><Project>Play_Button/Debug</Project><Project>Jinx/Debug</Project><Project>Painting/Debug</Project><Project>Shooting/Debug</Project></CurrentConfigs><CurrentProj>DJ_Sona</CurrentProj><OverviewSelected>0</OverviewSelected></ConfigDictionary>
   <Desktop>
     <Static>
       <Workspace>
@@ -12,7 +12,7 @@
           
           
           
-        <Column0>266</Column0><Column1>27</Column1><Column2>27</Column2><Column3>27</Column3></ColumnWidths>
+        <Column0>405</Column0><Column1>27</Column1><Column2>27</Column2><Column3>27</Column3></ColumnWidths>
       </Workspace>
       <Build>
         
@@ -36,7 +36,7 @@
           </Tab>
         </Tabs>
         
-      <SelectedTab>0</SelectedTab></Wnd1><Wnd3>
+      <SelectedTab>0</SelectedTab></Wnd1><Wnd2>
         <Tabs>
           <Tab>
             <Identity>TabID-5413-32392</Identity>
@@ -46,20 +46,20 @@
           </Tab>
         <Tab><Identity>TabID-5136-3861</Identity><TabName>Ambiguous Definitions</TabName><Factory>Select-Ambiguous-Definitions</Factory><Session/></Tab><Tab><Identity>TabID-15396-22055</Identity><TabName>Debug Log</TabName><Factory>Debug-Log</Factory><Session/></Tab><Tab><Identity>TabID-10602-7774</Identity><TabName>Find in Files</TabName><Factory>Find-in-Files</Factory><Session/></Tab></Tabs>
         
-      <SelectedTab>0</SelectedTab></Wnd3></Windows>
+      <SelectedTab>0</SelectedTab></Wnd2></Windows>
     <Editor>
       
       
       
       
-    <Pane/><ActivePane>0</ActivePane><Sizes><Pane><X>1000000</X><Y>1000000</Y></Pane></Sizes><SplitMode>1</SplitMode></Editor>
+    <Pane><Tab><Factory>TextEditor</Factory><Filename>$WS_DIR$\..\..\Source\Application\DJ_Sona\ApplicationTasks.c</Filename><XPos>0</XPos><YPos>0</YPos><SelStart>0</SelStart><SelEnd>0</SelEnd><XPos2>0</XPos2><YPos2>327</YPos2><SelStart2>12549</SelStart2><SelEnd2>12549</SelEnd2></Tab><ActiveTab>0</ActiveTab></Pane><ActivePane>0</ActivePane><Sizes><Pane><X>1000000</X><Y>1000000</Y></Pane></Sizes><SplitMode>1</SplitMode></Editor>
     <Positions>
       
       
       
       
       
-    <Top><Row0><Sizes><Toolbar-00E29178><key>iaridepm.enu1</key></Toolbar-00E29178></Sizes></Row0><Row1><Sizes/></Row1></Top><Left><Row0><Sizes><Wnd1><Rect><Top>-2</Top><Left>-2</Left><Bottom>511</Bottom><Right>340</Right><x>-2</x><y>-2</y><xscreen>142</xscreen><yscreen>142</yscreen><sizeHorzCX>103953</sizeHorzCX><sizeHorzCY>204023</sizeHorzCY><sizeVertCX>250366</sizeVertCX><sizeVertCY>737069</sizeVertCY></Rect></Wnd1></Sizes></Row0></Left><Right><Row0><Sizes/></Row0></Right><Bottom><Row0><Sizes><Wnd3><Rect><Top>-2</Top><Left>-2</Left><Bottom>140</Bottom><Right>1368</Right><x>-2</x><y>-2</y><xscreen>1370</xscreen><yscreen>142</yscreen><sizeHorzCX>1002928</sizeHorzCX><sizeHorzCY>204023</sizeHorzCY><sizeVertCX>103953</sizeVertCX><sizeVertCY>204023</sizeVertCY></Rect></Wnd3></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
+    <Top><Row0><Sizes><Toolbar-012ABA80><key>iaridepm.enu1</key></Toolbar-012ABA80></Sizes></Row0></Top><Left><Row0><Sizes><Wnd1><Rect><Top>-2</Top><Left>-2</Left><Bottom>734</Bottom><Right>479</Right><x>-2</x><y>-2</y><xscreen>200</xscreen><yscreen>199</yscreen><sizeHorzCX>104167</sizeHorzCX><sizeHorzCY>203893</sizeHorzCY><sizeVertCX>250521</sizeVertCX><sizeVertCY>754098</sizeVertCY></Rect></Wnd1></Sizes></Row0></Left><Right><Row0><Sizes/></Row0></Right><Bottom><Row0><Sizes><Wnd2><Rect><Top>-2</Top><Left>-2</Left><Bottom>197</Bottom><Right>1922</Right><x>-2</x><y>-2</y><xscreen>1924</xscreen><yscreen>199</yscreen><sizeHorzCX>1002083</sizeHorzCX><sizeHorzCY>203893</sizeHorzCY><sizeVertCX>104167</sizeVertCX><sizeVertCY>203893</sizeVertCY></Rect></Wnd2></Sizes></Row0></Bottom><Float><Sizes/></Float></Positions>
   </Desktop>
 </Workspace>
 

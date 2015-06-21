@@ -4,6 +4,7 @@
 #define KEY_JITTER_DELAY_MS   (30)
 #define SMOKE_MS              (2000)
 #define TWO_FEET_INTERVAL_MS  (500)
+#define JUMP_HIGH_MS          (100)
 #define ESCAPE_LASER_MS       (3000)
 #define KEEP_LASER_ON_MS      (2000)
 #define MAX_TREAD_MS          (120000)

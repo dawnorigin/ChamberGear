@@ -288,19 +288,19 @@ void EXTI1_IRQHandler(void)
 *******************************************************************************/
 void EXTI2_IRQHandler(void)
 {
-  extern SemaphoreHandle_t xSet1Semaphore;
-  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-  if (EXTI_GetITStatus(EXTI_Line2) != RESET) {
-    
-    /* Disable the interrupt */
-    EXTI->IMR &= ~ EXTI_Line2;
-    
-    xSemaphoreGiveFromISR(xSet1Semaphore, &xHigherPriorityTaskWoken);
-    
-    /* Clear interrupt pending bit */
-    EXTI_ClearITPendingBit(EXTI_Line2);
-  }
-  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
+//  extern SemaphoreHandle_t xSet1Semaphore;
+//  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+//  if (EXTI_GetITStatus(EXTI_Line2) != RESET) {
+//    
+//    /* Disable the interrupt */
+//    EXTI->IMR &= ~ EXTI_Line2;
+//    
+//    xSemaphoreGiveFromISR(xSet1Semaphore, &xHigherPriorityTaskWoken);
+//    
+//    /* Clear interrupt pending bit */
+//    EXTI_ClearITPendingBit(EXTI_Line2);
+//  }
+//  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
 /*******************************************************************************
@@ -312,19 +312,19 @@ void EXTI2_IRQHandler(void)
 *******************************************************************************/
 void EXTI3_IRQHandler(void)
 {
-  extern SemaphoreHandle_t xSet1Semaphore;
-  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-  if (EXTI_GetITStatus(EXTI_Line3) != RESET) {
-    
-    /* Disable the interrupt */
-    EXTI->IMR &= ~ EXTI_Line3;
-    
-    xSemaphoreGiveFromISR(xSet1Semaphore, &xHigherPriorityTaskWoken);
-    
-    /* Clear interrupt pending bit */
-    EXTI_ClearITPendingBit(EXTI_Line3);
-  }
-  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
+//  extern SemaphoreHandle_t xSet1Semaphore;
+//  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+//  if (EXTI_GetITStatus(EXTI_Line3) != RESET) {
+//    
+//    /* Disable the interrupt */
+//    EXTI->IMR &= ~ EXTI_Line3;
+//    
+//    xSemaphoreGiveFromISR(xSet1Semaphore, &xHigherPriorityTaskWoken);
+//    
+//    /* Clear interrupt pending bit */
+//    EXTI_ClearITPendingBit(EXTI_Line3);
+//  }
+//  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
 /*******************************************************************************
