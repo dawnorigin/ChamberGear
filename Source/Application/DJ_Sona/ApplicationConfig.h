@@ -2,7 +2,7 @@
 #define __APPLICATIONCONFIG__
 
 #define KEY_JITTER_DELAY_MS     (15)
-#define CRAB_DELAY_START_MS     (3000)
+#define CRAB_DELAY_START_MS     (2000)
 #define CRAB_SETS_DELAY_MS      (500)
 #define LAMP_ERROR_FLASH_MS     (200)
 #define LAMP_ERROR_FLASH_TIMES  (5)

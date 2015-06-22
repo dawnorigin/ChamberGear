@@ -4,6 +4,7 @@
 #define START_BYTE  (0x7E) 
 #define VERSION     (0xFF)
 #define PLAY_CMD    (0x03)
+#define STOP_CMD    (0x16)
 #define FEEDBACK    (0x01)
 #define NO_FEEDBACK (0x00)
 #define END_BYTE    (0xEF)
@@ -21,5 +22,5 @@
 #define DOOR_OPEN_AUDIO         (11)
 
 int player_play_file(short index, TickType_t xTicksToWait);
-
+void player_stop(void);
 #endif

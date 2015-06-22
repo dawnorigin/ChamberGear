@@ -29,7 +29,7 @@
         </option>
         <option>
           <name>Variant</name>
-          <version>20</version>
+          <version>21</version>
           <state>38</state>
         </option>
         <option>
@@ -60,7 +60,7 @@
         </option>
         <option>
           <name>FPU</name>
-          <version>2</version>
+          <version>5</version>
           <state>0</state>
         </option>
         <option>
@@ -87,7 +87,7 @@
         </option>
         <option>
           <name>OGLastSavedByProductVersion</name>
-          <state>7.20.2.7418</state>
+          <state>7.40.2.8567</state>
         </option>
         <option>
           <name>GeneralEnableMisra</name>
@@ -137,12 +137,12 @@
         </option>
         <option>
           <name>GFPUCoreSlave</name>
-          <version>20</version>
+          <version>21</version>
           <state>38</state>
         </option>
         <option>
           <name>GBECoreSlave</name>
-          <version>20</version>
+          <version>21</version>
           <state>38</state>
         </option>
         <option>
@@ -590,7 +590,7 @@
         <debug>1</debug>
         <option>
           <name>OOCOutputFormat</name>
-          <version>2</version>
+          <version>3</version>
           <state>0</state>
         </option>
         <option>
@@ -617,6 +617,7 @@
       <data>
         <extensions></extensions>
         <cmdline></cmdline>
+        <hasPrio>0</hasPrio>
       </data>
     </settings>
     <settings>
@@ -976,7 +977,7 @@
         </option>
         <option>
           <name>Variant</name>
-          <version>20</version>
+          <version>21</version>
           <state>0</state>
         </option>
         <option>
@@ -1007,7 +1008,7 @@
         </option>
         <option>
           <name>FPU</name>
-          <version>2</version>
+          <version>5</version>
           <state>0</state>
         </option>
         <option>
@@ -1084,12 +1085,12 @@
         </option>
         <option>
           <name>GFPUCoreSlave</name>
-          <version>20</version>
+          <version>21</version>
           <state>1</state>
         </option>
         <option>
           <name>GBECoreSlave</name>
-          <version>20</version>
+          <version>21</version>
           <state>1</state>
         </option>
         <option>
@@ -1531,7 +1532,7 @@
         <debug>0</debug>
         <option>
           <name>OOCOutputFormat</name>
-          <version>2</version>
+          <version>3</version>
           <state>0</state>
         </option>
         <option>
@@ -1558,6 +1559,7 @@
       <data>
         <extensions></extensions>
         <cmdline></cmdline>
+        <hasPrio>0</hasPrio>
       </data>
     </settings>
     <settings>
@@ -1938,7 +1940,7 @@
       </file>
     </group>
     <file>
-      <name>$PROJ_DIR$\..\..\..\Source\FreeRTOSv8.0.1\FreeRTOS\Source\portable\MemMang\heap_2.c</name>
+      <name>$PROJ_DIR$\..\..\..\Source\FreeRTOSv8.0.1\FreeRTOS\Source\portable\MemMang\heap_4.c</name>
     </file>
     <file>
       <name>$PROJ_DIR$\..\..\..\Source\FreeRTOSv8.0.1\FreeRTOS\Source\list.c</name>

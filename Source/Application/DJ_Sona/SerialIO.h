@@ -1,8 +1,8 @@
 #ifndef __SERIALIO__
 #define __SERIALIO__
 
-#define USART_TX_BUFFER_LENGTH 30
-#define USART_RX_BUFFER_LENGTH 30
+#define USART_TX_BUFFER_LENGTH 250
+#define USART_RX_BUFFER_LENGTH 60
 
 
 typedef struct {

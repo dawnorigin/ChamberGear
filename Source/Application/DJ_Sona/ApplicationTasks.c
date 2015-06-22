@@ -178,8 +178,9 @@ uint16_t cast_lamp[4] = {CAST_LAMP1_PIN, CAST_LAMP2_PIN,
 uint16_t button_led[4] = {LED1_PIN, LED2_PIN, LED3_PIN, LED4_PIN};
 /* Private function prototypes -----------------------------------------------*/
 /* Private functions ---------------------------------------------------------*/
-static portTASK_FUNCTION( vEntranceTask, pvParameters ) {
   int status = INIT;
+static portTASK_FUNCTION( vEntranceTask, pvParameters ) {
+
   int i;
 	/* The parameters are not used. */
 	( void ) pvParameters;
@@ -249,7 +250,15 @@ int status = INIT;
         break;
       }
       case DJPOWERON: {
+//        int randNum,j;
+//        srand(xTaskGetTickCount());
         player_play_file(DJ_POWER_ON_AUDIO, 0);
+//        for (j=0;j<10;j++) {
+//          randNum = (rand() / (RAND_MAX / 4));
+//          CAST_LAMP_ON(cast_lamp[index]);
+//          vTaskDelay((TickType_t)200);
+//          CAST_LAMP_OFF(cast_lamp[index]);
+//        }
         LAMP_ON(LAMP_PIN_ALL);
         LED_ON(LED_PIN_ALL);
         CAST_LAMP_ON(CAST_LAMP_PIN_ALL);
@@ -280,6 +289,7 @@ int status = INIT;
               LAMP_ON(LAMP1_PIN);
               LAMP_ERR_OFF();
               player_play_file(DJ_BLUE_AUDIO, 0);
+              while (Bit_RESET != PLAYER_BUSY_STATUS());
             } else if ((BUTTON2_PIN == (event.event & BUTTON2_PIN)) 
                        && (IDLE_GREEN == status)) {
               status = DJ_GREEN;
@@ -287,6 +297,7 @@ int status = INIT;
               LAMP_ON(LAMP2_PIN);
               LAMP_ERR_OFF();
               player_play_file(DJ_GREEN_AUDIO, 0);
+              while (Bit_RESET != PLAYER_BUSY_STATUS());
             } else if ((BUTTON3_PIN == (event.event & BUTTON3_PIN)) 
                        && (IDLE_PINK == status)) {
               status = DJ_PINK;
@@ -294,6 +305,7 @@ int status = INIT;
               LAMP_ON(LAMP3_PIN);
               LAMP_ERR_OFF();
               player_play_file(DJ_PINK_AUDIO, 0);
+              while (Bit_RESET != PLAYER_BUSY_STATUS());
             } else if ((BUTTON4_PIN == (event.event & BUTTON4_PIN)) 
                        && (IDLE_YELLOW == status)) {
               status = ACTION;
@@ -371,6 +383,7 @@ int status = INIT;
       }
       case BUTTON_ERR: {
         player_play_file(DJ_BUTTON_ERR_AUDIO, 0);
+        while (Bit_RESET != PLAYER_BUSY_STATUS());
         LED_OFF(LED_PIN_ALL);
         LAMP_OFF(LAMP_PIN_ALL);
         LAMP_ERR_OFF();
@@ -381,6 +394,7 @@ int status = INIT;
       }
       case TREAD_ERR: {
         player_play_file(DJ_TREAD_ERR_AUDIO, 0);
+        while (Bit_RESET != PLAYER_BUSY_STATUS());
         LED_OFF(LED_PIN_ALL);
         LAMP_OFF(LAMP_PIN_ALL);
         LAMP_ERR_OFF();
@@ -472,7 +486,7 @@ static portTASK_FUNCTION( vCrabTask, pvParameters ) {
                           DJ_STACK_SIZE, 
                           NULL, 
                           DJ_PRIORITY, 
-                          xDJTaskHandle);
+                          &xDJTaskHandle);
             }
           }
         } else if (NULL != xDJTaskHandle) {
@@ -483,6 +497,7 @@ static portTASK_FUNCTION( vCrabTask, pvParameters ) {
             DISABLE_TREAD_IT(TREAD_PIN_ALL);
             vTaskDelete(xDJTaskHandle);
             xDJTaskHandle = NULL;
+            player_stop();
             LAMP_OFF(LAMP_PIN_ALL);
             LED_OFF(LED_PIN_ALL);
             CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
@@ -515,6 +530,14 @@ static portTASK_FUNCTION(vTreadTask, pvParameters) {
       vTaskDelay((TickType_t)500);
       ENABLE_TREAD_IT(treads[index]);
     }
+  }//for(;;)
+}
+
+static portTASK_FUNCTION(vPlayerTask, pvParameters) {
+  
+  for(;;) {
+    
+    vTaskDelay((TickType_t)10);
   }//for(;;)
 }
 
@@ -747,5 +770,6 @@ void init_tasks(void) {
               NULL, 
               CRAB_PRIORITY, 
               ( TaskHandle_t * ) NULL );
+            
 }
 
