@@ -66,6 +66,10 @@ static portTASK_FUNCTION(vCrystalTask, pvParameters) {
         DISABLE_HALL_IT();
         /* Clean the xHallSemaphore semaphore */
         while (pdTRUE == xSemaphoreTake(xHallSemaphore, 0));
+        while (Bit_RESET == HALL_STATUS()) {
+          vTaskDelay((TickType_t)10);
+        }
+        vTaskDelay((TickType_t)START_DELAY_MS);
         /* Enable hall interrupt */
         ENABLE_HALL_IT();
         status = IDLE;

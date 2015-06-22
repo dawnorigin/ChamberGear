@@ -3,7 +3,7 @@
 
 #define HIT_BUTTON_TIMES    (30)
 #define HIT_BUTTON_PERIOD   (70000)
-
+#define START_DELAY_MS      (2000)
 #define KEY_JITTER_DELAY_MS (15)
 
 #endif

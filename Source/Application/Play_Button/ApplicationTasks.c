@@ -71,6 +71,10 @@ static portTASK_FUNCTION( vPlayBottonTask, pvParameters ) {
         DISABLE_PLAY_BUTTON_IT();
         /* Clean play button semaphore */
         while (pdTRUE == xSemaphoreTake(xBottonSemaphore, 0));
+        while (Bit_RESET == PLAY_BUTTON_STATUS()) {
+          vTaskDelay((TickType_t)10);
+        }
+        vTaskDelay((TickType_t)START_DELAY_MS);
         /* Enable play button interrupt */
         ENABLE_PLAY_BUTTON_IT();
         status = IDLE;
