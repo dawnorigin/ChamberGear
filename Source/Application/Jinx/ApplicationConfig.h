@@ -1,7 +1,7 @@
 #ifndef __APPLICATIONCONFIG__
 #define __APPLICATIONCONFIG__
 
-#define KEY_JITTER_DELAY_MS   (15)
+#define KEY_JITTER_DELAY_MS   (30)
 #define SMOKE_MS              (2000)
 #define TWO_FEET_INTERVAL_MS  (500)
 #define ESCAPE_LASER_MS       (3000)

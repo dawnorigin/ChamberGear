@@ -16,10 +16,15 @@
 #define DJ_BLUE_AUDIO           (6)
 #define DJ_GREEN_AUDIO          (7)
 #define DJ_PINK_AUDIO           (8)
-#define DJ_TREAD_CORRECT_AUDIO  (9)
-#define DJ_TREAD_ERR_AUDIO      (10)
-#define DJ_TREAD_COMPLETE_AUDIO (11)
-#define DOOR_OPEN_AUDIO         (12)
+#define DJ_TREAD_CORRECT_AUDIO1 (9)
+#define DJ_TREAD_CORRECT_AUDIO2 (10)
+#define DJ_TREAD_CORRECT_AUDIO3 (11)
+#define DJ_TREAD_CORRECT_AUDIO4 (12)
+#define DJ_TREAD_CORRECT_AUDIO5 (13)
+#define DJ_TREAD_CORRECT_AUDIO6 (14)
+#define DJ_TREAD_ERR_AUDIO      (15)
+#define DJ_TREAD_COMPLETE_AUDIO (16)
+#define DOOR_OPEN_AUDIO         (17)
 
 int player_play_file(short index, TickType_t xTicksToWait);
 

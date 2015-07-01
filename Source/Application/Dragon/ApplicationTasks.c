@@ -71,6 +71,8 @@ enum {
 
 #define LASER_ESC_RX_PORT     (GPIOE)
 #define LASER_ESC_RX_PIN      (GPIO_Pin_9)
+#define LASER_ESC_RX_STATUS()      GPIO_ReadInputDataBit(LASER_ESC_RX_PORT,\
+                                    LASER_ESC_RX_PIN)
 
 #define HALL_PORT             (GPIOE)
 #define HALL1_PIN             (GPIO_Pin_10)
@@ -422,6 +424,14 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
       case INIT_BUTTON: {
         /* Play audio */
         player_play_file(BUTTON_AUDIO, 0);
+        /* Wait for audio starting */
+        while(Bit_RESET != PLAYER_BUSY_STATUS());
+        /* Wait for audio end */
+        for (;;) {
+          if (Bit_RESET != PLAYER_BUSY_STATUS())
+            break;
+          vTaskDelay((TickType_t)10);
+        }
         /* LEDs show */
         LED_BUTTON_ON(LED_BUTTON_PIN_ALL);
         LED_T_F_ON(LED_T_F_PIN_ALL);
@@ -436,6 +446,12 @@ static portTASK_FUNCTION( vDragonTask, pvParameters ) {
         break;
       }
       case BUTTON: {
+        /* Wait for laser on */
+        for (;;) {
+          if (Bit_RESET != LASER_ESC_RX_STATUS())
+            break;
+          vTaskDelay((TickType_t)10);
+        }
         int index;
         /* A random button */
         index = random_button();

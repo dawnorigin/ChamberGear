@@ -308,7 +308,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             } else {
               tick_tmp = tread_event.time_stamp;
               if (STEP3 == status) {
-                status = STEP3_2;
+                status = STEP3_2;98g
               } else {
                 status = STEP4_2;
               }

@@ -398,17 +398,29 @@ static portTASK_FUNCTION( vDJTask, pvParameters ) {
       case DJ_PINK: {
         srand(xTaskGetTickCount());
         vTaskDelay((TickType_t)3000);
+        while (pdTRUE == xQueueReceive(xTreadQueue, &event, 0));
         
-        int index;
+        int index, index_pre = 0;
         int i = DJ_TREAD_RANDOM_TIMES;
         
         while (0 != i) {
-          ENABLE_TREAD_IT(TREAD_PIN_ALL);
           index = (rand() / (RAND_MAX / 4));
+          if (i != DJ_TREAD_RANDOM_TIMES) {
+            if (index == index_pre) {
+              continue;
+            } else {
+              index_pre = index;
+            }
+          } else {
+            index_pre = index; 
+          }
+          //vTaskDelay((TickType_t)DJ_TREAD_INTERVAL_MS);
+          ENABLE_TREAD_IT(TREAD_PIN_ALL);
           CAST_LAMP_ON(cast_lamp[index]);
           if (pdTRUE == xQueueReceive(xTreadQueue, &event, DJ_TREAD_DELAY_MS)) {
             if (index == event.event) {
-              player_play_file(DJ_TREAD_CORRECT_AUDIO, 0);
+//              player_play_file((DJ_TREAD_CORRECT_AUDIO1 + 
+//                                DJ_TREAD_RANDOM_TIMES - i), 0);
               CAST_LAMP_OFF(CAST_LAMP_PIN_ALL);
               i--;
               continue;
