@@ -265,19 +265,7 @@ void EXTI0_IRQHandler(void)
 *******************************************************************************/
 void EXTI1_IRQHandler(void)
 {
-  extern SemaphoreHandle_t xHitSemaphore;
-  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
-  if (EXTI_GetITStatus(EXTI_Line1) != RESET) {
-    
-    /* Disable the interrupt */
-    EXTI->IMR &= ~ EXTI_Line1;
-    
-    xSemaphoreGiveFromISR(xHitSemaphore, &xHigherPriorityTaskWoken);
-    
-    /* Clear interrupt pending bit */
-    EXTI_ClearITPendingBit(EXTI_Line1);
-  }
-  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
+
 }
 
 /*******************************************************************************
@@ -289,6 +277,19 @@ void EXTI1_IRQHandler(void)
 *******************************************************************************/
 void EXTI2_IRQHandler(void)
 {
+  extern SemaphoreHandle_t xHitSemaphore;
+  portBASE_TYPE xHigherPriorityTaskWoken = pdFALSE;
+  if (EXTI_GetITStatus(EXTI_Line2) != RESET) {
+    
+    /* Disable the interrupt */
+    EXTI->IMR &= ~ EXTI_Line2;
+    
+    xSemaphoreGiveFromISR(xHitSemaphore, &xHigherPriorityTaskWoken);
+    
+    /* Clear interrupt pending bit */
+    EXTI_ClearITPendingBit(EXTI_Line2);
+  }
+  portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }
 
 /*******************************************************************************

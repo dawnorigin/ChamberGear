@@ -244,7 +244,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             } else {
               status = STEP7;
             }
-            ENABLE_TREAD_IT(TREAD_PIN_ALL & (~TREAD1_PIN));
+            ENABLE_TREAD_IT(TREAD_PIN_ALL & (~TREAD2_PIN));
           }
         } else {
           status = ERR_ORDER;
@@ -269,7 +269,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
             } else { 
               status = STEP6;
             }
-            ENABLE_TREAD_IT(TREAD_PIN_ALL & (~TREAD1_PIN));
+            ENABLE_TREAD_IT(TREAD_PIN_ALL & (~TREAD4_PIN));
           }
         } else {
           status = ERR_ORDER;
@@ -400,6 +400,7 @@ static portTASK_FUNCTION( vJumpTask, pvParameters ) {
         TIM_Cmd(TIM2, ENABLE);
         /* Turn on laser trasmitter */
         LASER_TX_ON();
+        vTaskDelay((TickType_t)2000);
         if (pdTRUE == xSemaphoreTake(xLaserSemaphore, ESCAPE_LASER_MS)) {
           player_play_file(LASER_CORRECT_AUDIO, 0);
           /* Reciever has caught the laser ray */
@@ -494,11 +495,17 @@ static portTASK_FUNCTION( vDoorTask, pvParameters ) {
         break;
       }
       case CAST: {
-        if (pdTRUE == xSemaphoreTake(xPyroSemaphore, portMAX_DELAY)) {
+        if (Bit_SET != PYRO2_STATUS()) {
+          if (pdTRUE == xSemaphoreTake(xPyroSemaphore, portMAX_DELAY)) {
+            /* Open the cast box */
+            BOX_CAST_ON();
+            status = FINISH;
+          }
+        } else {
           /* Open the cast box */
           BOX_CAST_ON();
           status = FINISH;
-        }
+        } 
         break;
       }
       case FINISH: {
@@ -525,8 +532,8 @@ static portTASK_FUNCTION(vTreadTask, pvParameters) {
         event.time_stamp = xTaskGetTickCountFromISR();
         xQueueSend(xTreadQueue, &event, 0);
       }
-      //vTaskDelay((TickType_t)100);
-      //ENABLE_TREAD_IT(treads[index]);
+//      vTaskDelay((TickType_t)100);
+//      ENABLE_TREAD_IT(treads[index]);
     }
   }//for(;;)
 }

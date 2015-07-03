@@ -749,14 +749,14 @@ void EXTI15_10_IRQHandler(void)
     /* Clear interrupt pending bit */
     EXTI_ClearITPendingBit(event.event);
     
-    if(RESET != (event.event & GPIO_Pin_5))
-      xSemaphoreGiveFromISR(xTreadSemaphore[0], &xHigherPriorityTaskWoken);
-    if(RESET != (event.event & GPIO_Pin_6))
-      xSemaphoreGiveFromISR(xTreadSemaphore[1], &xHigherPriorityTaskWoken);
-    if(RESET != (event.event & GPIO_Pin_8))
-      xSemaphoreGiveFromISR(xTreadSemaphore[2], &xHigherPriorityTaskWoken);
-    if(RESET != (event.event & GPIO_Pin_9))
-      xSemaphoreGiveFromISR(xTreadSemaphore[3], &xHigherPriorityTaskWoken);
+    if(RESET != (event.event & GPIO_Pin_10))
+      xSemaphoreGiveFromISR(xTreadSemaphore[4], &xHigherPriorityTaskWoken);
+    if(RESET != (event.event & GPIO_Pin_11))
+      xSemaphoreGiveFromISR(xTreadSemaphore[5], &xHigherPriorityTaskWoken);
+    if(RESET != (event.event & GPIO_Pin_12))
+      xSemaphoreGiveFromISR(xTreadSemaphore[6], &xHigherPriorityTaskWoken);
+    if(RESET != (event.event & GPIO_Pin_15))
+      xSemaphoreGiveFromISR(xTreadSemaphore[7], &xHigherPriorityTaskWoken);
   }
   portEND_SWITCHING_ISR(xHigherPriorityTaskWoken);
 }

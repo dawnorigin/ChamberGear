@@ -34,11 +34,11 @@ enum {
 #define DISABLE_PLAY_BUTTON_IT()  {EXTI->IMR &= ~EXTI_Line0;}
 
 #define HIT_BUTTON_PORT           (GPIOA)
-#define HIT_BUTTON_PIN            (GPIO_Pin_1)
+#define HIT_BUTTON_PIN            (GPIO_Pin_2)
 #define HIT_BUTTON_STATUS()       (GPIO_ReadInputDataBit(HIT_BUTTON_PORT, \
                                                      HIT_BUTTON_PIN))
-#define ENABLE_HIT_BUTTON_IT()    {EXTI->IMR |= EXTI_Line1;}
-#define DISABLE_HIT_BUTTON_IT()   {EXTI->IMR &= ~EXTI_Line1;}
+#define ENABLE_HIT_BUTTON_IT()    {EXTI->IMR |= EXTI_Line2;}
+#define DISABLE_HIT_BUTTON_IT()   {EXTI->IMR &= ~EXTI_Line2;}
 
 #define LAMP_PORT                 (GPIOB)
 #define LAMP_PIN                  (GPIO_Pin_0)
@@ -150,7 +150,7 @@ static portTASK_FUNCTION( vHitTask, pvParameters ) {
           /* Skip the key jitter step */
           vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
           /* Check whether the button was pressed */
-          if (Bit_RESET == HIT_BUTTON_STATUS()) {
+          if (Bit_SET == HIT_BUTTON_STATUS()) {
             hit_previous_tick = xTaskGetTickCount();
             hit_counter++;
             status = PROCESS;
@@ -167,7 +167,7 @@ static portTASK_FUNCTION( vHitTask, pvParameters ) {
           /* Skip the key jitter step */
           vTaskDelay((TickType_t)KEY_JITTER_DELAY_MS);
           /* Check whether the button was pressed */
-          if (Bit_RESET == HIT_BUTTON_STATUS()) {
+          if (Bit_SET == HIT_BUTTON_STATUS()) {
             /* Update hit interval */
             tmp_tick = xTaskGetTickCount();
             hit_period -= hit_interval[hit_interval_index];
@@ -221,7 +221,12 @@ static void hardware_init(void) {
   USART_InitTypeDef USART_InitStructure;
   
   /* Configure GPIO */
-  GPIO_InitStructure.GPIO_Pin = PLAY_BUTTON_PIN | HIT_BUTTON_PIN;
+  GPIO_InitStructure.GPIO_Pin = PLAY_BUTTON_PIN;
+  GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
+  GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
+  GPIO_Init(GPIOA, &GPIO_InitStructure);
+  
+  GPIO_InitStructure.GPIO_Pin = HIT_BUTTON_PIN;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IPU;
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_50MHz;
   GPIO_Init(GPIOA, &GPIO_InitStructure);
@@ -242,7 +247,7 @@ static void hardware_init(void) {
   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&NVIC_InitStructure);
 
-	NVIC_InitStructure.NVIC_IRQChannel = EXTI1_IRQn;
+	NVIC_InitStructure.NVIC_IRQChannel = EXTI2_IRQn;
   NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 
                           configLIBRARY_KERNEL_INTERRUPT_PRIORITY;
   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
@@ -255,10 +260,10 @@ static void hardware_init(void) {
   EXTI_InitStructure.EXTI_LineCmd = ENABLE;
   EXTI_Init(&EXTI_InitStructure);  
   
-	GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource1);
-	EXTI_InitStructure.EXTI_Line = EXTI_Line1;
+	GPIO_EXTILineConfig(GPIO_PortSourceGPIOA, GPIO_PinSource2);
+	EXTI_InitStructure.EXTI_Line = EXTI_Line2;
   EXTI_InitStructure.EXTI_Mode = EXTI_Mode_Interrupt;
-  EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Falling;
+  EXTI_InitStructure.EXTI_Trigger = EXTI_Trigger_Rising;
   EXTI_InitStructure.EXTI_LineCmd = ENABLE;
   EXTI_Init(&EXTI_InitStructure);  
 
